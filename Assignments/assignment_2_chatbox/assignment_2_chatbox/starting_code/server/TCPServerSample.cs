@@ -26,6 +26,8 @@ class TCPServerSample
 		{
 			processNewClients(listener, clientIndex, clients);
 			processExistingClients(clients);
+			
+			//Isn't it better to have this be the first call in the loop? Otherwise processExistingClients might run into disconnected clients.
 			cleanupFaultyClients(clients);
 
 			//Although technically not required, now that we are no longer blocking, 
@@ -49,13 +51,11 @@ class TCPServerSample
 
 			//Log "joined session" message
 			Console.WriteLine($"Accepted new client: {clientName}");
+			string welcomeMessage = $"You joined the room as {clientName}!";
 			NetworkStream stream = newClient.GetStream();
-			string dataToSend = concatenateNameInData(stream);
-
-			byte[] buffer = System.Text.Encoding.UTF8.GetBytes(dataToSend);
+			StreamUtil.Write(stream, System.Text.Encoding.UTF8.GetBytes(welcomeMessage));
 			
-			StreamUtil.Write(stream, buffer);
-			
+			//Increment ID for next user.
 			pClientIndex++;
 		}	
 	}
@@ -71,10 +71,11 @@ class TCPServerSample
 			
 			NetworkStream stream = client.Value.GetStream();
 
+			//Log new input
 			byte[] receivedData = StreamUtil.Read(stream);
 			string textRepresentation = System.Text.Encoding.UTF8.GetString(receivedData, 0, receivedData.Length);
 			string dataToSend = client.Key + ": " + textRepresentation;
-			
+
 			byte[] buffer = System.Text.Encoding.UTF8.GetBytes(dataToSend);
 			
 			StreamUtil.Write(stream, buffer);
@@ -96,6 +97,12 @@ class TCPServerSample
 		pClients = tempClients;
 	}
 
+	/// <summary>
+	/// Retrieve and convert incoming bytes to string. Insert client's name before that data and send it back.
+	/// </summary>
+	/// <param name="pStream">NetworkStream from which we retrieve data</param>
+	/// <param name="pClientName">e.g. "Client_01", used to insert before the message that user sent</param>
+	/// <returns></returns>
 	private static string concatenateNameInData(NetworkStream pStream, string pClientName)
 	{
 		byte[] receivedData = StreamUtil.Read(pStream);
@@ -103,9 +110,21 @@ class TCPServerSample
 		return pClientName + ": " + textRepresentation;
 	}
 
-	private static void sendPublicMessage()
+	/// <summary>
+	/// Loops over all clients connected to the server and writes to their network streams.
+	/// </summary>
+	/// <param name="pPublicMessage"></param>
+	/// <param name="pClients"></param>
+	private static void sendPublicMessage(string pPublicMessage, Dictionary<string, TcpClient> pClients)
 	{
-		
+		byte[] buffer = System.Text.Encoding.UTF8.GetBytes(pPublicMessage);
+		foreach(KeyValuePair<string, TcpClient> client in pClients)
+		{
+			NetworkStream stream = client.Value.GetStream();
+
+			StreamUtil.Write(stream, buffer);
+		}
+
 	}
 }
 

@@ -1,5 +1,7 @@
 ﻿using shared;
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
 using UnityEngine;
@@ -16,11 +18,15 @@ public class TCPChatClient : MonoBehaviour
     [SerializeField] private int _port = 55555;
 
     private TcpClient _client;
+    private NetworkStream _stream;
 
     void Start()
     {
         _panelWrapper.OnChatTextEntered += onTextEntered;
         connectToServer();
+
+        _stream = _client.GetStream();
+        StartCoroutine(onDataReceived());
     }
 
     private void connectToServer()
@@ -63,6 +69,16 @@ public class TCPChatClient : MonoBehaviour
 			_client.Close();
 			connectToServer();
 		}
+    }
+
+    private IEnumerator onDataReceived()
+    {
+	    if (_client.Available == 0)
+		    yield return null;
+	    
+	    byte[] receivedData = StreamUtil.Read(_stream);
+	    string textRepresentation = System.Text.Encoding.UTF8.GetString(receivedData, 0, receivedData.Length);
+	    _panelWrapper.AddOutput(textRepresentation);
     }
 
 }
