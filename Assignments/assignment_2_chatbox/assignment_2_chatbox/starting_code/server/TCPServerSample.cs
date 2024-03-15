@@ -44,19 +44,28 @@ class TCPServerSample
 		//In order to serve multiple clients, we add that client to a list
 		while (pListener.Pending())
 		{
-			string clientName = $"Client_{pClientIndex}";
+			string newClientName = $"Client_{pClientIndex}";
 
 			TcpClient newClient = pListener.AcceptTcpClient();
-			pClients.Add(clientName, newClient);
+			pClients.Add(newClientName, newClient);
 
 			//Log "joined session" message
-			Console.WriteLine($"Accepted new client: {clientName}");
-			string welcomeMessage = $"You joined the room as {clientName}!";
+			Console.WriteLine($"Accepted new client: {newClientName}");
+			string welcomeMessage = $"You joined the room as {newClientName}!";
 			NetworkStream stream = newClient.GetStream();
 			StreamUtil.Write(stream, System.Text.Encoding.UTF8.GetBytes(welcomeMessage));
 			
 			//Increment ID for next user.
 			pClientIndex++;
+
+			foreach (var client in pClients)
+			{
+				if (client.Key == newClientName)
+					continue;
+
+				string newClientMessage = $"{newClientName} has joined the server. Total online: {pClients.Count}";
+				StreamUtil.Write(client.Value.GetStream(), System.Text.Encoding.UTF8.GetBytes(newClientMessage));
+			}
 		}	
 	}
 
@@ -74,12 +83,32 @@ class TCPServerSample
 			//Log new input
 			byte[] receivedData = StreamUtil.Read(stream);
 			string textRepresentation = System.Text.Encoding.UTF8.GetString(receivedData, 0, receivedData.Length);
+			sortCommand(textRepresentation);
+			
 			string dataToSend = client.Key + ": " + textRepresentation;
 
 			byte[] buffer = System.Text.Encoding.UTF8.GetBytes(dataToSend);
 			
-			StreamUtil.Write(stream, buffer);
+			sendPublicMessage(dataToSend, pClients);
 		}	
+	}
+
+	private static bool checkIfIsCommand(string pInput) => pInput.StartsWith("/");
+
+	private static void sortCommand(string pCommand)
+	{
+		//Invalid input
+		if (!pCommand.StartsWith("/"))
+			return;
+
+		string removedSlash = pCommand.Substring(1);
+		string normalizedInput = removedSlash.ToLower();
+		string[] seperatedElements = removedSlash.Split();
+		
+		if (seperatedElements[0] == "setname")
+		{
+			Console.WriteLine($"change name to {seperatedElements[1]}");
+		}
 	}
 
 	private static void cleanupFaultyClients(Dictionary<string,TcpClient> pClients)

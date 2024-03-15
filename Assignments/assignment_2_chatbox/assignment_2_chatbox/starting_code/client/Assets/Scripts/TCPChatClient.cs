@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using UnityEngine;
 
 /**
@@ -26,7 +27,7 @@ public class TCPChatClient : MonoBehaviour
         connectToServer();
 
         _stream = _client.GetStream();
-        StartCoroutine(onDataReceived());
+        
     }
 
     private void connectToServer()
@@ -43,6 +44,19 @@ public class TCPChatClient : MonoBehaviour
             _panelWrapper.AddOutput("Could not connect to server:");
             _panelWrapper.AddOutput(e.Message);
         }
+    }
+
+    private void Update()
+    {
+	    try
+	    {
+		    if(_stream.DataAvailable)
+				readStream();
+	    }
+	    catch (Exception e)
+	    {
+		    Console.WriteLine(e);
+	    }
     }
 
     private void onTextEntered(string pInput)
@@ -71,11 +85,8 @@ public class TCPChatClient : MonoBehaviour
 		}
     }
 
-    private IEnumerator onDataReceived()
+    private void readStream()
     {
-	    if (_client.Available == 0)
-		    yield return null;
-	    
 	    byte[] receivedData = StreamUtil.Read(_stream);
 	    string textRepresentation = System.Text.Encoding.UTF8.GetString(receivedData, 0, receivedData.Length);
 	    _panelWrapper.AddOutput(textRepresentation);
