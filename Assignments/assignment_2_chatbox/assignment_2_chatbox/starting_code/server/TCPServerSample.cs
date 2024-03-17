@@ -21,18 +21,22 @@ class TCPServerSample
 
 		TcpListener listener = new TcpListener (IPAddress.Any, 55555);
 		listener.Start ();
+
+		CommandsHelper commandsHelper = new CommandsHelper();
+		commandsHelper.SetClients(_clients);
+		commandsHelper.E_ServerPrivateMessage += sendServerMessageToUser;
+		commandsHelper.E_ServerPublicMessage += sendServerMessageToAllUsers;
+		commandsHelper.E_UserToUserMessage += sendWhisperMessage;
 		
 		int clientIndex = 0;
 		while (true)
 		{
 			processNewClients(listener, clientIndex);
-			processExistingClients();
+			processExistingClients(commandsHelper);
 			
 			//Isn't it better to have this be the first call in the loop? Otherwise processExistingClients might run into disconnected clients.
 			cleanupFaultyClients();
 
-			//Although technically not required, now that we are no longer blocking, 
-			//it is good to cut your CPU some slack
 			Thread.Sleep(100);
 		}
 	}
@@ -45,7 +49,7 @@ class TCPServerSample
 		//In order to serve multiple clients, we add that client to a list
 		while (pListener.Pending())
 		{
-			string newClientName = $"Client_{pClientIndex}";
+			string newClientName = $"client_{pClientIndex}";
 
 			TcpClient newClient = pListener.AcceptTcpClient();
 			_clients.Add(newClientName, newClient);
@@ -70,7 +74,7 @@ class TCPServerSample
 		}	
 	}
 
-	private static void processExistingClients()
+	private static void processExistingClients(CommandsHelper pCommandsHelper)
 	{
 		//Second big change, instead of blocking on one client, 
 		//we now process all clients IF they have data available
@@ -84,69 +88,16 @@ class TCPServerSample
 			//Log new input
 			byte[] receivedData = StreamUtil.Read(stream);
 			string input = System.Text.Encoding.UTF8.GetString(receivedData, 0, receivedData.Length);
-			if (isCommand(input))
+			if (pCommandsHelper.isCommand(input))
 			{
-				sortCommand(input, client.Key);
+				pCommandsHelper.sortCommand(input, client.Key);
 				return;
 			}
 
 			echoMessageToAllClients(receivedData, client.Key);
 		}	
 	}
-
-	private static bool isCommand(string pCommand) => pCommand.StartsWith("/");
-
-	private static void sortCommand(string pCommand, string pClientName)
-	{
-		string removedSlash = pCommand.Substring(1);
-		string lowerCase = removedSlash.ToLower();
-		string[] seperatedElements = lowerCase.Split();
-		string filteredCommnand = seperatedElements[0];
-
-		switch (filteredCommnand)
-		{
-			case "setname":
-				if (!checkIfNewNameIsValid(pClientName, seperatedElements[1]))
-					return;
-				
-				setClientName(pClientName, seperatedElements[1]);
-				break;
-			case "list":
-				//Log all connected clients
-				break;
-			case "help":
-				//Information about all possible chat commands
-				break;
-		}
-	}
-
-	private static bool checkIfNewNameIsValid(string pFromUser, string pNewName)
-	{
-		string errorMessage = "";
-		if (_clients.ContainsKey(pNewName))
-		{
-			errorMessage = $"{pNewName} is already taken. Please choose another.";
-			sendServerMessageToUser(pFromUser, errorMessage);
-			return false;
-		}
-
-		//Expand with other limitations if necessary (profanity filter, characters etc)
-		return true;
-	}
 	
-	private static void setClientName(string pClientName, string pNewName)
-	{
-		//can't change dictionary keys so have to remove and add it again with the new name.
-		_clients.TryGetValue(pClientName, out TcpClient tempStoredClient);
-		_clients.Remove(pClientName);
-
-		string lowercaseName = pNewName.ToLower();
-		_clients.Add(lowercaseName, tempStoredClient);
-
-		string confirmationMessage = $"{pClientName} successfully changed their ID to '{lowercaseName}'";
-		sendServerMessageToAllUsers(confirmationMessage);
-	}
-
 	private static void cleanupFaultyClients()
 	{
 		Dictionary<string, TcpClient> tempClients = _clients;
@@ -161,20 +112,7 @@ class TCPServerSample
 
 		_clients = tempClients;
 	}
-
-	/// <summary>
-	/// Retrieve and convert incoming bytes to string. Insert client's name before that data and send it back.
-	/// </summary>
-	/// <param name="pStream">NetworkStream from which we retrieve data</param>
-	/// <param name="pClientName">e.g. "Client_01", used to insert before the message that user sent</param>
-	/// <returns></returns>
-	private static string concatenateNameInData(NetworkStream pStream, string pClientName)
-	{
-		byte[] receivedData = StreamUtil.Read(pStream);
-		string textRepresentation = System.Text.Encoding.UTF8.GetString(receivedData, 0, receivedData.Length);
-		return pClientName + ": " + textRepresentation;
-	}
-
+	
 	/// <summary>
 	/// Loops over all clients connected to the server and writes to their network streams.
 	/// </summary>
@@ -216,6 +154,26 @@ class TCPServerSample
 			return;
 		StreamUtil.Write(client.GetStream(), buffer);
 	}
+
+	private static void sendWhisperMessage(string pFromClient, string pToClient, string pMessage)
+	{
+		string messageToSender = $"You -> {pToClient}: {pMessage}";
+		byte[] senderBuffer = System.Text.Encoding.UTF8.GetBytes(messageToSender);
+		_clients.TryGetValue(pFromClient, out TcpClient sender);
+		
+		string messageToReceiver = $"(whisper) {pFromClient}: {pMessage}";
+		byte[] receiverBuffer = System.Text.Encoding.UTF8.GetBytes(messageToReceiver);
+		_clients.TryGetValue(pToClient, out TcpClient receiver);
+
+		if (receiver == null)
+		{
+			string errorMessage = $"User '{pToClient}' does not exist.";
+			byte[] errorBuffer = System.Text.Encoding.UTF8.GetBytes(errorMessage);
+			StreamUtil.Write(sender.GetStream(), errorBuffer);
+			return;
+		}
+		
+		StreamUtil.Write(sender.GetStream(), senderBuffer);
+		StreamUtil.Write(receiver.GetStream(), receiverBuffer);
+	}
 }
-
-
