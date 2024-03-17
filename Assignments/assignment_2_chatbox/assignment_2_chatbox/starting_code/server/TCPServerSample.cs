@@ -2,6 +2,7 @@
 using System.Net.Sockets;
 using System.Net;
 using System.Collections.Generic;
+using System.Text;
 using shared;
 using System.Threading;
 
@@ -11,24 +12,24 @@ class TCPServerSample
 	 * This class implements a simple concurrent TCP Echo server.
 	 * Read carefully through the comments below.
 	 */
-	
+
+	private static Dictionary<string, TcpClient> _clients = new Dictionary<string, TcpClient>();
+
 	public static void Main (string[] args)
 	{
 		Console.WriteLine("Server started on port 55555");
 
 		TcpListener listener = new TcpListener (IPAddress.Any, 55555);
 		listener.Start ();
-
-		Dictionary<string, TcpClient> clients= new Dictionary<string, TcpClient>();
-
+		
 		int clientIndex = 0;
 		while (true)
 		{
-			processNewClients(listener, clientIndex, clients);
-			processExistingClients(clients);
+			processNewClients(listener, clientIndex);
+			processExistingClients();
 			
 			//Isn't it better to have this be the first call in the loop? Otherwise processExistingClients might run into disconnected clients.
-			cleanupFaultyClients(clients);
+			cleanupFaultyClients();
 
 			//Although technically not required, now that we are no longer blocking, 
 			//it is good to cut your CPU some slack
@@ -36,7 +37,7 @@ class TCPServerSample
 		}
 	}
 
-	private static void processNewClients(TcpListener pListener, int pClientIndex, Dictionary<string,TcpClient> pClients)
+	private static void processNewClients(TcpListener pListener, int pClientIndex)
 	{
 		//First big change with respect to example 001
 		//We no longer block waiting for a client to connect, but we only block if we know
@@ -47,7 +48,7 @@ class TCPServerSample
 			string newClientName = $"Client_{pClientIndex}";
 
 			TcpClient newClient = pListener.AcceptTcpClient();
-			pClients.Add(newClientName, newClient);
+			_clients.Add(newClientName, newClient);
 
 			//Log "joined session" message
 			Console.WriteLine($"Accepted new client: {newClientName}");
@@ -58,22 +59,22 @@ class TCPServerSample
 			//Increment ID for next user.
 			pClientIndex++;
 
-			foreach (var client in pClients)
+			foreach (KeyValuePair<string, TcpClient> client in _clients)
 			{
 				if (client.Key == newClientName)
 					continue;
 
-				string newClientMessage = $"{newClientName} has joined the server. Total online: {pClients.Count}";
+				string newClientMessage = $"{newClientName} has joined the server. Total online: {_clients.Count}";
 				StreamUtil.Write(client.Value.GetStream(), System.Text.Encoding.UTF8.GetBytes(newClientMessage));
 			}
 		}	
 	}
 
-	private static void processExistingClients(Dictionary<string,TcpClient> pClients)
+	private static void processExistingClients()
 	{
 		//Second big change, instead of blocking on one client, 
 		//we now process all clients IF they have data available
-		foreach (KeyValuePair<string, TcpClient> client in pClients)
+		foreach (KeyValuePair<string, TcpClient> client in _clients)
 		{
 			if (client.Value.Available == 0) 
 				continue;
@@ -82,38 +83,73 @@ class TCPServerSample
 
 			//Log new input
 			byte[] receivedData = StreamUtil.Read(stream);
-			string textRepresentation = System.Text.Encoding.UTF8.GetString(receivedData, 0, receivedData.Length);
-			sortCommand(textRepresentation);
-			
-			string dataToSend = client.Key + ": " + textRepresentation;
+			string input = System.Text.Encoding.UTF8.GetString(receivedData, 0, receivedData.Length);
+			if (isCommand(input))
+			{
+				sortCommand(input, client.Key);
+				return;
+			}
 
-			byte[] buffer = System.Text.Encoding.UTF8.GetBytes(dataToSend);
-			
-			sendPublicMessage(dataToSend, pClients);
+			echoMessageToAllClients(receivedData, client.Key);
 		}	
 	}
 
-	private static bool checkIfIsCommand(string pInput) => pInput.StartsWith("/");
+	private static bool isCommand(string pCommand) => pCommand.StartsWith("/");
 
-	private static void sortCommand(string pCommand)
+	private static void sortCommand(string pCommand, string pClientName)
 	{
-		//Invalid input
-		if (!pCommand.StartsWith("/"))
-			return;
-
 		string removedSlash = pCommand.Substring(1);
-		string normalizedInput = removedSlash.ToLower();
-		string[] seperatedElements = removedSlash.Split();
-		
-		if (seperatedElements[0] == "setname")
+		string lowerCase = removedSlash.ToLower();
+		string[] seperatedElements = lowerCase.Split();
+		string filteredCommnand = seperatedElements[0];
+
+		switch (filteredCommnand)
 		{
-			Console.WriteLine($"change name to {seperatedElements[1]}");
+			case "setname":
+				if (!checkIfNewNameIsValid(pClientName, seperatedElements[1]))
+					return;
+				
+				setClientName(pClientName, seperatedElements[1]);
+				break;
+			case "list":
+				//Log all connected clients
+				break;
+			case "help":
+				//Information about all possible chat commands
+				break;
 		}
 	}
 
-	private static void cleanupFaultyClients(Dictionary<string,TcpClient> pClients)
+	private static bool checkIfNewNameIsValid(string pFromUser, string pNewName)
 	{
-		Dictionary<string, TcpClient> tempClients = pClients;
+		string errorMessage = "";
+		if (_clients.ContainsKey(pNewName))
+		{
+			errorMessage = $"{pNewName} is already taken. Please choose another.";
+			sendServerMessageToUser(pFromUser, errorMessage);
+			return false;
+		}
+
+		//Expand with other limitations if necessary (profanity filter, characters etc)
+		return true;
+	}
+	
+	private static void setClientName(string pClientName, string pNewName)
+	{
+		//can't change dictionary keys so have to remove and add it again with the new name.
+		_clients.TryGetValue(pClientName, out TcpClient tempStoredClient);
+		_clients.Remove(pClientName);
+
+		string lowercaseName = pNewName.ToLower();
+		_clients.Add(lowercaseName, tempStoredClient);
+
+		string confirmationMessage = $"{pClientName} successfully changed their ID to '{lowercaseName}'";
+		sendServerMessageToAllUsers(confirmationMessage);
+	}
+
+	private static void cleanupFaultyClients()
+	{
+		Dictionary<string, TcpClient> tempClients = _clients;
 
 		foreach (KeyValuePair<string, TcpClient> client in tempClients)
 		{
@@ -123,7 +159,7 @@ class TCPServerSample
 			tempClients.Remove(client.Key);
 		}
 
-		pClients = tempClients;
+		_clients = tempClients;
 	}
 
 	/// <summary>
@@ -144,16 +180,41 @@ class TCPServerSample
 	/// </summary>
 	/// <param name="pPublicMessage"></param>
 	/// <param name="pClients"></param>
-	private static void sendPublicMessage(string pPublicMessage, Dictionary<string, TcpClient> pClients)
+	private static void echoMessageToAllClients(byte[] pIncomingBuffer, string pFromUser)
 	{
-		byte[] buffer = System.Text.Encoding.UTF8.GetBytes(pPublicMessage);
-		foreach(KeyValuePair<string, TcpClient> client in pClients)
+		string publicMessage = Encoding.UTF8.GetString(pIncomingBuffer);
+		
+		foreach(KeyValuePair<string, TcpClient> client in _clients)
 		{
+			string userName = pFromUser;
+			
+			if (pFromUser == client.Key)
+				userName = "You";
+
+			string data = $"{userName}: {publicMessage}";
+			byte[] buffer = System.Text.Encoding.UTF8.GetBytes(data);
 			NetworkStream stream = client.Value.GetStream();
 
 			StreamUtil.Write(stream, buffer);
 		}
+	}
 
+	private static void sendServerMessageToAllUsers(string pMessage)
+	{
+		//Bad implementation to convert double. TODO
+		byte[] buffer = Encoding.UTF8.GetBytes(pMessage);
+		
+		echoMessageToAllClients(buffer, "Server");
+	}
+
+	private static void sendServerMessageToUser(string pClientName, string pMessage)
+	{
+		byte[] buffer = System.Text.Encoding.UTF8.GetBytes(pMessage);
+
+		_clients.TryGetValue(pClientName, out TcpClient client);
+		if (client == null)
+			return;
+		StreamUtil.Write(client.GetStream(), buffer);
 	}
 }
 
