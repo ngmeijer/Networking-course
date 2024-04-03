@@ -51,7 +51,7 @@ class TCPServerSample
 			TcpClient client = _listener.AcceptTcpClient();
 			_clients.Add(client);
 
-			createNewAvatar();
+			createNewAvatar(client);
             synchronizeAvatars();
 		}
 	}
@@ -67,16 +67,20 @@ class TCPServerSample
         }
     }
 
-	private void createNewAvatar()
+	private void createNewAvatar(TcpClient pClient)
 	{
         int id = _clients.Count - 1;
         int skinID = randomNumberGenerator.Next(0, 1000);
 
+        float[] position = getRandomValidPosition(pClient);
         AvatarContainer newAvatar = new AvatarContainer()
         {
             ID = id,
             SkinID = skinID,
+            Position = position,
         };
+
+
         _avatars.Add(newAvatar);
 
         Console.WriteLine($"Accepted client: {newAvatar.ID}.");
@@ -91,9 +95,20 @@ class TCPServerSample
 			if (sender.Available == 0) continue;
 
             ISerializable inObject = readIncomingData(sender);
-			loopDataToClients(sender, inObject); 
+            if(inObject is AvatarContainer avatar)
+            {
+                int index = _avatars.IndexOf(avatar);
+            }
+			loopDataToClients(inObject); 
         }
 	}
+
+    private float[] getRandomValidPosition(TcpClient pClient, AvatarContainer pContainer)
+    {
+        sendObject(pClient, pContainer);
+
+        return position;
+    }
 
     private ISerializable readIncomingData(TcpClient pSender)
     {
@@ -118,7 +133,7 @@ class TCPServerSample
         _clients = tempClients;
     }
 
-    private void loopDataToClients(TcpClient pClient, ISerializable pObject)
+    private void loopDataToClients(ISerializable pObject)
     {
 		foreach(TcpClient client in _clients)
 		{

@@ -66,6 +66,11 @@ public class ChatLobbyClient : MonoBehaviour
         _client.Close();
     }
 
+    private void sendRandomValidPosition()
+    {
+
+    }
+
     private void sendMessage(string pOutString)
     {
         try
