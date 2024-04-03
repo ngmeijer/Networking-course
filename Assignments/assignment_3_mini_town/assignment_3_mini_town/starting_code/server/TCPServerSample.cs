@@ -50,29 +50,39 @@ class TCPServerSample
 		{
 			TcpClient client = _listener.AcceptTcpClient();
 			_clients.Add(client);
-	
-			int id =_clients.Count - 1;
-			int skinID = randomNumberGenerator.Next(0, 1000);
 
-			//Change to random valid position.
-			float[] position = new[]
-			{
-				0f, 0f, 0f
-			};
-			AvatarContainer newAvatar = new AvatarContainer()
-			{
-				ID = id,
-				SkinID = skinID,
-				Position = position 
-			};
-			_avatars.Add(newAvatar);
-
-			sendObject(client, newAvatar);
-			Console.WriteLine($"Accepted client: {newAvatar.ID}.");
+			createNewAvatar();
+            synchronizeAvatars();
 		}
 	}
 
-	private void processExistingClients()
+    private void synchronizeAvatars()
+    {
+        foreach (TcpClient currentClient in _clients)
+        {
+            foreach (AvatarContainer avatar in _avatars)
+            {
+                sendObject(currentClient, avatar);
+            }
+        }
+    }
+
+	private void createNewAvatar()
+	{
+        int id = _clients.Count - 1;
+        int skinID = randomNumberGenerator.Next(0, 1000);
+
+        AvatarContainer newAvatar = new AvatarContainer()
+        {
+            ID = id,
+            SkinID = skinID,
+        };
+        _avatars.Add(newAvatar);
+
+        Console.WriteLine($"Accepted client: {newAvatar.ID}.");
+    }
+
+    private void processExistingClients()
 	{
 		checkFaultyClients();
 
@@ -80,22 +90,17 @@ class TCPServerSample
 		{
 			if (sender.Available == 0) continue;
 
-            ////just send back anything we got
-            //StreamUtil.Write(client.GetStream(), StreamUtil.Read(client.GetStream()));
-
-            byte[] inBytes = StreamUtil.Read(sender.GetStream());
-            Packet inPacket = new Packet(inBytes);
-            ISerializable inObject = inPacket.ReadObject();
-            Console.WriteLine("Received:" + inObject);
-
-            if (inObject is SimpleMessage message) 
-			{ 
-				loopDataToClients(sender, message); 
-			}
-
-            //else if (inObject is GetRequest getRequest) { handleGetRequest(client, getRequest); }
+            ISerializable inObject = readIncomingData(sender);
+			loopDataToClients(sender, inObject); 
         }
 	}
+
+    private ISerializable readIncomingData(TcpClient pSender)
+    {
+        byte[] inBytes = StreamUtil.Read(pSender.GetStream());
+        Packet inPacket = new Packet(inBytes);
+        return inPacket.ReadObject();
+    }
 
 	private void checkFaultyClients()
 	{
@@ -103,7 +108,6 @@ class TCPServerSample
 
         foreach (TcpClient client in tempClients)
         {
-			Console.WriteLine(client.Connected);
             if (client.Connected)
                 continue;
 
@@ -114,13 +118,11 @@ class TCPServerSample
         _clients = tempClients;
     }
 
-    private void loopDataToClients(TcpClient pClient, SimpleMessage pMessage)
+    private void loopDataToClients(TcpClient pClient, ISerializable pObject)
     {
-		Console.WriteLine($"Message received:{pMessage.Text}");
-
 		foreach(TcpClient client in _clients)
 		{
-			sendObject(client, pMessage);
+			sendObject(client, pObject);
 		}
     }
 
@@ -128,7 +130,7 @@ class TCPServerSample
     {
         try
         {
-            Console.WriteLine("Sending: " + pOutObject);
+            Console.WriteLine("Sending to all clients: " + pOutObject);
 
             Packet outPacket = new Packet();
             outPacket.Write(pOutObject);

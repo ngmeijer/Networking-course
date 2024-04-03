@@ -116,15 +116,17 @@ public class ChatLobbyClient : MonoBehaviour
                 Packet inPacket = new Packet(inBytes);
                 ISerializable inObject = inPacket.ReadObject();
 
-                if (inObject is SimpleMessage message)
+                switch (inObject)
                 {
-                    string inString = message.Text;
-                    Debug.Log("Received:" + inString);
-                    showMessage(0, inString);
-                } else if (inObject is AvatarContainer avatarContainer)
-                {
-                    _areaManager.AddAvatarView(avatarContainer.ID);
-                    _areaManager.GetAvatarView(avatarContainer.ID).SetSkin(avatarContainer.SkinID);
+                    case SimpleMessage message2:
+                        string inString = message2.Text;
+                        Debug.Log("Received:" + inString);
+                        showMessage(0, inString);
+                        break;
+                    case AvatarContainer avatarContainer:
+                        _areaManager.AddAvatarView(avatarContainer.ID);
+                        _areaManager.GetAvatarView(avatarContainer.ID).SetSkin(avatarContainer.SkinID);
+                        break;
                 }
             }
         }
