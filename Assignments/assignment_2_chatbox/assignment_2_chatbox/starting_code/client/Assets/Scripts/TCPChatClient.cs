@@ -89,8 +89,11 @@ public class TCPChatClient : MonoBehaviour
     {
 	    byte[] receivedData = StreamUtil.Read(_stream);
 	    string textRepresentation = System.Text.Encoding.UTF8.GetString(receivedData, 0, receivedData.Length);
+        if(textRepresentation.Contains("Server ping"))
+            textRepresentation = textRepresentation.Replace("Server ping", "");
+        if (textRepresentation == "")
+            return;
 	    _panelWrapper.AddOutput(textRepresentation);
     }
-
 }
 
