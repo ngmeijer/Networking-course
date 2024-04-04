@@ -27,7 +27,6 @@ public class TCPChatClient : MonoBehaviour
         connectToServer();
 
         _stream = _client.GetStream();
-        
     }
 
     private void connectToServer()
@@ -74,6 +73,11 @@ public class TCPChatClient : MonoBehaviour
 
 			byte[] inBytes = StreamUtil.Read(_client.GetStream());
             string inString = Encoding.UTF8.GetString(inBytes);
+
+            if (inString.Contains("Server ping"))
+                inString = inString.Replace("Server ping", "");
+            if (inString == "")
+                return;
             _panelWrapper.AddOutput(inString);
 		} 
         catch (Exception e) 
@@ -89,11 +93,13 @@ public class TCPChatClient : MonoBehaviour
     {
 	    byte[] receivedData = StreamUtil.Read(_stream);
 	    string textRepresentation = System.Text.Encoding.UTF8.GetString(receivedData, 0, receivedData.Length);
-        if(textRepresentation.Contains("Server ping"))
+
+        if (textRepresentation.Contains("Server ping"))
             textRepresentation = textRepresentation.Replace("Server ping", "");
         if (textRepresentation == "")
             return;
-	    _panelWrapper.AddOutput(textRepresentation);
+
+        _panelWrapper.AddOutput(textRepresentation);
     }
 }
 

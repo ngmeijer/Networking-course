@@ -1,5 +1,8 @@
+using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
+using System.Runtime.Remoting.Messaging;
+using System.Windows.Input;
 
 class CommandsHelper
 {
@@ -28,40 +31,22 @@ class CommandsHelper
 		string[] seperatedElements = lowerCase.Split();
 		string filteredCommnand = seperatedElements[0];
 
-		//Find a better way instead of switch case.
 		switch (filteredCommnand)
 		{
 			case "setname":
-				if (!checkIfNewNameIsValid(pClientName, seperatedElements[1]))
-					return;
-				
-				setClientName(pClientName, seperatedElements[1]);
+				handleSetClientNameCommand(pClientName, seperatedElements[1]);
 				break;
 			case "list":
-				//Log all connected clients
-				listAllClients(pClientName);
+				handleListClientsCommand(pClientName);
 				break;
 			case "help":
-				//Information about all possible chat commands. Find a better way for this.
-				string helpMessage = "/setname <newID>" +
-				                     "\n	-sets a new unique clientID." +
-				                     "\n/whisper <userID> <message>" +
-				                     "\n	Send a private message to specified user." +
-				                     "\n/list" + 
-				                     "\n	-lists all connected clients to the server." + 
-				                     "\n/help" +
-				                     "\n	-lists all available commands.";
-				OnServerPrivateMessage(pClientName, helpMessage);
+				handleHelpCommand(pClientName);
 				break;
 			case "whisper":
-				string targetUser = seperatedElements[1];
-				int index = lowerCase.IndexOf(targetUser);
-				string message = lowerCase.Substring(index + targetUser.Length).Trim();
-				OnUserToUserMessage(pClientName, targetUser, message);
+				handleWhisperCommand(seperatedElements, lowerCase, pClientName);
 				break;
 			default:
-				string errorMessage = $"'{pCommand}' is not a valid command.";
-				OnServerPrivateMessage(pClientName, errorMessage);
+				handleInvalidCommand(pCommand, pClientName);
 				break;
 		}
 	}
@@ -77,14 +62,22 @@ class CommandsHelper
 			return false;
 		}
 
-		//Expand with other limitations if necessary (profanity filter, characters etc)
 		return true;
 	}
-	
-	private void setClientName(string pClientName, string pNewName)
+
+	private void handleInvalidCommand(string pCommand, string pFromClient)
 	{
-		//can't change dictionary keys so have to remove and add it again with the new name.
-		_clients.TryGetValue(pClientName, out TcpClient tempStoredClient);
+        string errorMessage = $"'{pCommand}' is not a valid command.";
+        OnServerPrivateMessage(pFromClient, errorMessage);
+    }
+	
+	private void handleSetClientNameCommand(string pClientName, string pNewName)
+	{
+        if (!checkIfNewNameIsValid(pClientName, pNewName))
+            return;
+
+        //can't change dictionary keys so have to remove and add it again with the new name.
+        _clients.TryGetValue(pClientName, out TcpClient tempStoredClient);
 		_clients.Remove(pClientName);
 
 		string lowercaseName = pNewName.ToLower();
@@ -94,7 +87,7 @@ class CommandsHelper
 		OnServerPublicMessage(confirmationMessage);
 	}
 
-	private void listAllClients(string pClientName)
+	private void handleListClientsCommand(string pClientName)
 	{
 		string namesMessage = "All clients connected to this server:";
 		foreach (KeyValuePair<string, TcpClient> client in _clients)
@@ -104,6 +97,33 @@ class CommandsHelper
 
 		OnServerPrivateMessage(pClientName, namesMessage);
 	}
+
+	private void handleWhisperCommand(string[] pSeperatedElements, string pLowerCaseData, string pFromClient)
+	{
+        if (pSeperatedElements.Length == 1)
+        {
+            string errorMessage = "A client name to deliver the message to must be given.";
+            OnServerPrivateMessage(pFromClient, errorMessage);
+            return;
+        }
+        string targetUser = pSeperatedElements[1];
+        int index = pLowerCaseData.IndexOf(targetUser);
+        string message = pLowerCaseData.Substring(index + targetUser.Length).Trim();
+        OnUserToUserMessage(pFromClient, targetUser, message);
+    }
+
+    private void handleHelpCommand(string pClientName)
+	{
+        string message = "/setname <newID>" +
+                                     "\n	-sets a new unique clientID." +
+                                     "\n/whisper <userID> <message>" +
+                                     "\n	Send a private message to specified user." +
+                                     "\n/list" +
+                                     "\n	-lists all connected clients to the server." +
+                                     "\n/help" +
+                                     "\n	-lists all available commands.";
+        OnServerPrivateMessage(pClientName, message);
+    }
 
 	private void OnServerPrivateMessage(string pClientName, string pMessage)
 	{

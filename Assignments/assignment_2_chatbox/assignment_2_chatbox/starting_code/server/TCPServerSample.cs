@@ -24,12 +24,12 @@ class TCPServerSample
 
         CommandsHelper commandsHelper = new CommandsHelper();
         commandsHelper.SetClients(_clients);
-        commandsHelper.E_ServerPrivateMessage += sendServerMessageToUser;
+        commandsHelper.E_ServerPrivateMessage += sendMessageToUser;
         commandsHelper.E_ServerPublicMessage += sendServerMessageToAllUsers;
         commandsHelper.E_UserToUserMessage += sendWhisperMessage;
 
         int clientIndex = 0;
-        int timeIndex  = 0;
+        int timeIndex = 0;
         while (true)
         {
             Console.WriteLine($"Server running - {timeIndex}");
@@ -58,13 +58,10 @@ class TCPServerSample
                 TcpClient newClient = pListener.AcceptTcpClient();
                 _clients.Add(newClientName, newClient);
 
-                //Log "joined session" message
                 Console.WriteLine($"Accepted new client: {newClientName}");
                 string welcomeMessage = $"You joined the room as {newClientName}!";
-                NetworkStream stream = newClient.GetStream();
-                StreamUtil.Write(stream, System.Text.Encoding.UTF8.GetBytes(welcomeMessage));
+                sendMessageToUser(newClientName, welcomeMessage);
 
-                //Increment ID for next user.
                 pClientIndex++;
 
                 foreach (KeyValuePair<string, TcpClient> client in _clients)
@@ -73,7 +70,7 @@ class TCPServerSample
                         continue;
 
                     string newClientMessage = $"{newClientName} has joined the server. Total online: {_clients.Count}";
-                    StreamUtil.Write(client.Value.GetStream(), System.Text.Encoding.UTF8.GetBytes(newClientMessage));
+                    sendMessageToUser(client.Key, newClientMessage);
                 }
             }
             catch (Exception e)
@@ -85,8 +82,6 @@ class TCPServerSample
 
     private static void processExistingClients(CommandsHelper pCommandsHelper)
     {
-        //Second big change, instead of blocking on one client, 
-        //we now process all clients IF they have data available
         foreach (KeyValuePair<string, TcpClient> client in _clients)
         {
             try
@@ -105,7 +100,8 @@ class TCPServerSample
                     return;
                 }
 
-                echoMessageToAllClients(receivedData, client.Key);
+
+                echoMessageToAllClients(input, client.Key);
             }
             catch (Exception e)
             {
@@ -116,14 +112,14 @@ class TCPServerSample
 
     private static void cleanupFaultyClients()
     {
-        Dictionary<string, TcpClient> removedClients = new Dictionary<string, TcpClient> ();
+        Dictionary<string, TcpClient> removedClients = new Dictionary<string, TcpClient>();
 
         foreach (KeyValuePair<string, TcpClient> client in _clients)
         {
             try
             {
                 string testMessage = "Server ping";
-                sendServerMessageToUser(client.Key, testMessage);
+                sendMessageToUser(client.Key, testMessage);
             }
             catch (Exception e)
             {
@@ -143,10 +139,8 @@ class TCPServerSample
     /// </summary>
     /// <param name="pPublicMessage"></param>
     /// <param name="pClients"></param>
-    private static void echoMessageToAllClients(byte[] pIncomingBuffer, string pFromUser)
+    private static void echoMessageToAllClients(string pMessage, string pFromUser)
     {
-        string publicMessage = Encoding.UTF8.GetString(pIncomingBuffer);
-
         foreach (KeyValuePair<string, TcpClient> client in _clients)
         {
             string userName = pFromUser;
@@ -154,7 +148,7 @@ class TCPServerSample
             if (pFromUser == client.Key)
                 userName = "You";
 
-            string data = $"{userName}: {publicMessage}";
+            string data = $"{userName}: {pMessage}";
             byte[] buffer = System.Text.Encoding.UTF8.GetBytes(data);
             NetworkStream stream = client.Value.GetStream();
 
@@ -164,13 +158,10 @@ class TCPServerSample
 
     private static void sendServerMessageToAllUsers(string pMessage)
     {
-        //Bad implementation to convert double. TODO
-        byte[] buffer = Encoding.UTF8.GetBytes(pMessage);
-
-        echoMessageToAllClients(buffer, "Server");
+        echoMessageToAllClients(pMessage, "Server");
     }
 
-    private static void sendServerMessageToUser(string pClientName, string pMessage)
+    private static void sendMessageToUser(string pClientName, string pMessage)
     {
         byte[] buffer = System.Text.Encoding.UTF8.GetBytes(pMessage);
 
@@ -183,22 +174,19 @@ class TCPServerSample
     private static void sendWhisperMessage(string pFromClient, string pToClient, string pMessage)
     {
         string messageToSender = $"You -> {pToClient}: {pMessage}";
-        byte[] senderBuffer = System.Text.Encoding.UTF8.GetBytes(messageToSender);
         _clients.TryGetValue(pFromClient, out TcpClient sender);
 
         string messageToReceiver = $"(whisper) {pFromClient}: {pMessage}";
-        byte[] receiverBuffer = System.Text.Encoding.UTF8.GetBytes(messageToReceiver);
         _clients.TryGetValue(pToClient, out TcpClient receiver);
 
         if (receiver == null)
         {
-            string errorMessage = $"User '{pToClient}' does not exist.";
-            byte[] errorBuffer = System.Text.Encoding.UTF8.GetBytes(errorMessage);
-            StreamUtil.Write(sender.GetStream(), errorBuffer);
+            string errorMessage = $"User ' {pToClient} ' does not exist.";
+            sendMessageToUser(pFromClient, errorMessage);
             return;
         }
 
-        StreamUtil.Write(sender.GetStream(), senderBuffer);
-        StreamUtil.Write(receiver.GetStream(), receiverBuffer);
+        sendMessageToUser(pFromClient, messageToSender);
+        sendMessageToUser(pToClient, messageToReceiver);
     }
 }
