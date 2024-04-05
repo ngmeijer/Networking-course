@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
+using System.Xml.Linq;
 using UnityEngine;
 
 /**
@@ -21,6 +22,13 @@ public class ChatLobbyClient : MonoBehaviour
     [SerializeField] private int _port = 55555;
 
     private TcpClient _client;
+
+    [Tooltip("How far away from the center of the scene will we spawn avatars?")]
+    public float spawnRange = 10;
+    [Tooltip("What is the minimum angle from the center we are spawning the avatar at?")]
+    public float spawnMinAngle = 0;
+    [Tooltip("What is the maximum angle from the center we are spawning the avatar at?")]
+    public float spawnMaxAngle = 180;
 
     private void Start()
     {
@@ -66,30 +74,36 @@ public class ChatLobbyClient : MonoBehaviour
         _client.Close();
     }
 
-    private void sendRandomValidPosition()
-    {
-
-    }
-
     private void sendMessage(string pOutString)
     {
         try
         {
-            //we are still communicating with strings at this point, this has to be replaced with either packet or object communication
-            Debug.Log("Sending:" + pOutString);
-            // byte[] outBytes = Encoding.UTF8.GetBytes(pOutString);
-            // StreamUtil.Write(_client.GetStream(), outBytes);
-
             SimpleMessage message = new SimpleMessage();
             message.Text = pOutString;
             sendObject(message);
         }
         catch (Exception e)
         {
-            //for quicker testing, we reconnect if something goes wrong.
             Debug.Log(e.Message);
             //_client.Close();
             //connectToServer();
+        }
+    }
+
+    private ISerializable receiveObject()
+    {
+        try
+        {
+            byte[] inBytes = StreamUtil.Read(_client.GetStream());
+            Packet inPacket = new Packet(inBytes);
+            ISerializable incomingObject = inPacket.ReadObject();
+            Debug.Log(incomingObject);
+            return incomingObject;
+        }
+        catch (Exception e)
+        {
+            Debug.Log(e.Message);
+            return null;
         }
     }
 
@@ -97,14 +111,11 @@ public class ChatLobbyClient : MonoBehaviour
     {
         try
         {
-            Debug.Log("Sending: " + pOutObject);
-
             Packet outPacket = new Packet();
             outPacket.Write(pOutObject);
-
             StreamUtil.Write(_client.GetStream(), outPacket.GetBytes());
         }
-        catch(Exception e)
+        catch (Exception e)
         {
             Debug.Log(e.Message);
         }
@@ -117,31 +128,72 @@ public class ChatLobbyClient : MonoBehaviour
         {
             if (_client.Available > 0)
             {
-                byte[] inBytes = StreamUtil.Read(_client.GetStream());
-                Packet inPacket = new Packet(inBytes);
-                ISerializable inObject = inPacket.ReadObject();
-
-                switch (inObject)
-                {
-                    case SimpleMessage message2:
-                        string inString = message2.Text;
-                        Debug.Log("Received:" + inString);
-                        showMessage(0, inString);
-                        break;
-                    case AvatarContainer avatarContainer:
-                        _areaManager.AddAvatarView(avatarContainer.ID);
-                        _areaManager.GetAvatarView(avatarContainer.ID).SetSkin(avatarContainer.SkinID);
-                        break;
-                }
+                ISerializable inObject = receiveObject();
+                Debug.Log($"Object received: {inObject}");
+                handleIncomingObjectAction(inObject);
             }
         }
         catch (Exception e)
         {
             //for quicker testing, we reconnect if something goes wrong.
-            Debug.Log(e.Message);
+            Debug.Log($"Error: {e.Message}.");
             //_client.Close();
             //connectToServer();
         }
+    }
+
+    private void handleIncomingObjectAction(ISerializable pInObject)
+    {
+        switch (pInObject)
+        {
+            case SimpleMessage message:
+                showMessage(0, message.Text);
+                break;
+            case AvatarContainer avatarContainer:
+                handleAvatarCreation(avatarContainer);
+                break;
+            case PositionRequest positionRequest:
+                handlePositionRequest(positionRequest);
+                break;
+            case SkinRequest skinRequest:
+                handleSkinRequest(skinRequest);
+                break;
+        }
+    }
+
+    private void handleSkinRequest(SkinRequest pSkinRequest)
+    {
+        _areaManager.GetAvatarView(pSkinRequest.ID).SetSkin(pSkinRequest.SkinID);
+    }
+
+    private void handleAvatarCreation(AvatarContainer pContainer)
+    {
+        Debug.Log("Adding avatar");
+        _areaManager.AddAvatarView(pContainer.ID);
+        _areaManager.GetAvatarView(pContainer.ID).SetSkin(pContainer.SkinID);
+
+        PositionRequest positionRequest = new PositionRequest()
+        {
+            ID = pContainer.ID,
+        };
+        handlePositionRequest(positionRequest);
+    }
+
+    private void handlePositionRequest(PositionRequest pIncomingObject)
+    {
+        Vector3 randomPos = getRandomPosition();
+        Debug.Log($"Generated position: {randomPos}");
+        ISerializable outObject = new PositionRequest()
+        {
+            ID = pIncomingObject.ID,
+            Position = new float[3]
+            {
+                  randomPos.x,
+                  randomPos.y,
+                  randomPos.z
+             },
+        };
+        sendObject(outObject);
     }
 
     private void showMessage(int pSenderID, string pText)
@@ -150,7 +202,7 @@ public class ChatLobbyClient : MonoBehaviour
         //What should actually happen is use an ID that you got from the server, to get the correct avatar
         //and show the text message through that
         List<int> allAvatarIds = _areaManager.GetAllAvatarIds();
-        
+
         if (allAvatarIds.Count == 0)
         {
             Debug.Log("No avatars available to show text through:" + pText);
@@ -160,6 +212,17 @@ public class ChatLobbyClient : MonoBehaviour
         int randomAvatarId = allAvatarIds[UnityEngine.Random.Range(0, allAvatarIds.Count)];
         AvatarView avatarView = _areaManager.GetAvatarView(randomAvatarId);
         avatarView.Say(pText);
+    }
+
+    /**
+     * Returns a position somewhere in town.
+     */
+    private Vector3 getRandomPosition()
+    {
+        //set a random position
+        float randomAngle = UnityEngine.Random.Range(spawnMinAngle, spawnMaxAngle) * Mathf.Deg2Rad;
+        float randomDistance = UnityEngine.Random.Range(0, spawnRange);
+        return new Vector3(Mathf.Cos(randomAngle), 0, Mathf.Sin(randomAngle)) * randomDistance;
     }
 
     private void OnApplicationQuit()

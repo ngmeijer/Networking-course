@@ -54,10 +54,19 @@ namespace shared
 
 		public ISerializable ReadObject() 
 		{
-			Type type = Type.GetType(ReadString());
-			ISerializable obj = (ISerializable)Activator.CreateInstance(type);
-			obj.Deserialize(this);
-			return obj;
+			try
+			{
+				Type type = Type.GetType(ReadString());
+				Console.WriteLine(type.FullName);
+				ISerializable obj = (ISerializable)Activator.CreateInstance(type);
+				obj.Deserialize(this);
+				return obj;
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine (ex.Message);
+				return null;
+			}
 		}
 
 		public T Read<T>() where T:ISerializable
