@@ -90,7 +90,7 @@ class TCPServer
                     break;
                 //Distribute position update to all clients.
                 case PositionUpdate positionReq:
-                    syncPositionsAcrossClients(client.Key, positionReq);
+                    //syncPositionsAcrossClients(client.Key, positionReq);
                     break;
             }
         }
@@ -98,16 +98,36 @@ class TCPServer
 
     private void syncNewAvatarsAcrossClients(TcpClient pNewClient, AvatarContainer pNewAvatar)
     {
+        if (_clientAvatars.TryGetValue(pNewClient, out AvatarContainer avatar))
+        {
+            avatar.PosX = pNewAvatar.PosX;
+            avatar.PosY = pNewAvatar.PosY;
+            avatar.PosZ = pNewAvatar.PosZ;
+        }
+
         List<TcpClient> clients = _clientAvatars.Keys.ToList();
         Console.WriteLine($"Received random position for new client. Total client count: {clients.Count}");
         //Other clients must be notified of new client's avatar.
-        for(int i = 0; i < clients.Count; i++)
+        for(int clientIndex = 0; clientIndex < clients.Count; clientIndex++)
         {
-            TcpClient currentClient = clients[i];
-            if (currentClient == pNewClient)
-                continue;
+            TcpClient currentClient = clients[clientIndex];
 
-            Console.WriteLine($"Notifying client {i} of new avatar {pNewAvatar.ID}");
+            //If the current client in the list IS the new client, send the avatars of existing clients to the new client as well.
+            if (currentClient == pNewClient)
+            {
+                //Loop over clients/avatars.
+                foreach(KeyValuePair<TcpClient, AvatarContainer> pair in _clientAvatars)
+                {
+                    //If the loop hits the new client itself, skip it. Otherwise client side throws error that an avatar already exists (+ unnecessary traffic)
+                    if (pair.Key == pNewClient)
+                        continue;
+
+                    _requestHandler.SendNewAvatar(pNewClient, pair.Value);
+                }
+                continue;
+            }
+
+            Console.WriteLine($"Notifying client {clientIndex} of new avatar {pNewAvatar.ID}");
             _requestHandler.SendNewAvatar(currentClient, pNewAvatar);
         }
     }
