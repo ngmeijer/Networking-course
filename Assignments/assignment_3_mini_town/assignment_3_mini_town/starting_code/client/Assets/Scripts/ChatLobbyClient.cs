@@ -22,6 +22,7 @@ public class ChatLobbyClient : MonoBehaviour
     [SerializeField] private int _port = 55555;
 
     private TcpClient _client;
+    private int _ownID;
 
     [Tooltip("How far away from the center of the scene will we spawn avatars?")]
     public float spawnRange = 10;
@@ -59,8 +60,17 @@ public class ChatLobbyClient : MonoBehaviour
 
     private void onAvatarAreaClicked(Vector3 pClickPosition)
     {
-        Debug.Log("ChatLobbyClient: you clicked on " + pClickPosition);
-        //TODO pass data to the server so that the server can send a position update to all clients (if the position is valid!!)
+        //Not handling moving correctly yet.
+
+        //PositionUpdate outObject = new PositionUpdate();
+        //outObject.ID = _ownID;
+        //outObject.Position = new float[3]
+        //{
+        //    pClickPosition.x,
+        //    pClickPosition.y,
+        //    pClickPosition.z
+        //};
+        //sendObject(outObject);
     }
 
     private void onChatTextEntered(string pText)
@@ -136,7 +146,7 @@ public class ChatLobbyClient : MonoBehaviour
         catch (Exception e)
         {
             //for quicker testing, we reconnect if something goes wrong.
-            Debug.Log($"Error: {e.Message}.");
+            Debug.Log($"Error thrown at Try/Catch Update(): {e.Message}.");
             //_client.Close();
             //connectToServer();
         }
@@ -147,13 +157,14 @@ public class ChatLobbyClient : MonoBehaviour
         switch (pInObject)
         {
             case SimpleMessage message:
-                showMessage(0, message.Text);
+                handleSimpleMessage(message);
                 break;
+            //Only triggered upon new clients joining.
             case AvatarContainer avatarContainer:
-                handleAvatarCreation(avatarContainer);
+                handleNewAvatar(avatarContainer);
                 break;
-            case PositionRequest positionRequest:
-                handlePositionRequest(positionRequest);
+            case PositionUpdate positionUpdate:
+                handlePositionUpdate(positionUpdate);
                 break;
             case SkinRequest skinRequest:
                 handleSkinRequest(skinRequest);
@@ -161,57 +172,60 @@ public class ChatLobbyClient : MonoBehaviour
         }
     }
 
-    private void handleSkinRequest(SkinRequest pSkinRequest)
+    private void handleSkinRequest(SkinRequest pIncomingObject)
     {
-        _areaManager.GetAvatarView(pSkinRequest.ID).SetSkin(pSkinRequest.SkinID);
+        _areaManager.GetAvatarView(pIncomingObject.ID).SetSkin(pIncomingObject.SkinID);
+    }
+    
+    private void handlePositionUpdate(PositionUpdate pIncomingObject)
+    {
+        Vector3 newPosition = new Vector3(pIncomingObject.Position[0], pIncomingObject.Position[1], pIncomingObject.Position[2]);
+        _areaManager.GetAvatarView(pIncomingObject.ID).Move(newPosition);
     }
 
-    private void handleAvatarCreation(AvatarContainer pContainer)
+    private void handleNewAvatar(AvatarContainer pIncomingObject)
     {
-        Debug.Log("Adding avatar");
-        _areaManager.AddAvatarView(pContainer.ID);
-        _areaManager.GetAvatarView(pContainer.ID).SetSkin(pContainer.SkinID);
+        Debug.Log($"Incoming AvatarContainer null?: {pIncomingObject == null}");
+        Debug.Log($"AreaManager null?: {_areaManager == null}");
 
-        PositionRequest positionRequest = new PositionRequest()
+        Vector3 avatarPosition = new Vector3(pIncomingObject.PosX, pIncomingObject.PosY, pIncomingObject.PosZ);
+        Debug.Log($"Incoming PositionArray null?: {avatarPosition == Vector3.zero}");
+
+        //The position is not assigned yet, so it must mean the AvatarContainer should be controlled by this client.
+        if (avatarPosition == Vector3.zero)
         {
-            ID = pContainer.ID,
-        };
-        handlePositionRequest(positionRequest);
-    }
-
-    private void handlePositionRequest(PositionRequest pIncomingObject)
-    {
-        Vector3 randomPos = getRandomPosition();
-        Debug.Log($"Generated position: {randomPos}");
-        ISerializable outObject = new PositionRequest()
-        {
-            ID = pIncomingObject.ID,
-            Position = new float[3]
-            {
-                  randomPos.x,
-                  randomPos.y,
-                  randomPos.z
-             },
-        };
-        sendObject(outObject);
-    }
-
-    private void showMessage(int pSenderID, string pText)
-    {
-        //This is a stub for what should actually happen
-        //What should actually happen is use an ID that you got from the server, to get the correct avatar
-        //and show the text message through that
-        List<int> allAvatarIds = _areaManager.GetAllAvatarIds();
-
-        if (allAvatarIds.Count == 0)
-        {
-            Debug.Log("No avatars available to show text through:" + pText);
-            return;
+            Debug.Log("Position is not set yet for new Avatar.");
+            _ownID = pIncomingObject.ID;
+            avatarPosition = sendPosition(pIncomingObject);
         }
 
-        int randomAvatarId = allAvatarIds[UnityEngine.Random.Range(0, allAvatarIds.Count)];
-        AvatarView avatarView = _areaManager.GetAvatarView(randomAvatarId);
-        avatarView.Say(pText);
+        //Create new avatar instance with ID provided BY SERVER
+        AvatarView avatarView = _areaManager.AddAvatarView(pIncomingObject.ID);
+        Debug.Log($"Added avatarView with ID: {pIncomingObject.ID}");
+        avatarView.SetSkin(pIncomingObject.SkinID);
+        avatarView.transform.localPosition = avatarPosition;
+    }
+
+    private Vector3 sendPosition(AvatarContainer pIncomingObject)
+    {
+        Vector3 randomPos = getRandomPosition();
+        ISerializable outObject = new AvatarContainer()
+        {
+            ID = pIncomingObject.ID,
+            SkinID = pIncomingObject.SkinID,
+            PosX = randomPos.x,
+            PosY = randomPos.y,
+            PosZ = randomPos.z,
+        };
+        sendObject(outObject);
+
+        return randomPos;
+    }
+
+    private void handleSimpleMessage(SimpleMessage pIncomingObject)
+    {
+        AvatarView avatarView = _areaManager.GetAvatarView(pIncomingObject.SenderID);
+        avatarView.Say(pIncomingObject.Text);
     }
 
     /**

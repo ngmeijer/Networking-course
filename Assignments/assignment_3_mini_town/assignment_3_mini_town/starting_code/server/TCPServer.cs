@@ -7,6 +7,7 @@ using shared;
 using System.Threading;
 using System.Diagnostics;
 using server;
+using System.Linq;
 
 /**
  * This class implements a simple tcp echo server.
@@ -38,6 +39,7 @@ class TCPServer
         {
             processNewClients();
             processExistingClients();
+            checkFaultyClients();
 
             Thread.Sleep(100);
         }
@@ -49,53 +51,82 @@ class TCPServer
         {
             TcpClient client = _listener.AcceptTcpClient();
             _clientAvatars.Add(client, null);
-            AvatarContainer newAvatar = _requestHandler.HandleNewAvatarCreation(client, _clientAvatars.Count - 1);
+            AvatarContainer newAvatar = new AvatarContainer()
+            {
+                ID = _clientAvatars.Count - 1,
+                ClientID = _clientAvatars.Count - 1,
+                SkinID = 1,
+            };
             _clientAvatars[client] = newAvatar;
 
-            synchronizeAvatars();
-        }
-    }
-
-    private void synchronizeAvatars()
-    {
-        foreach(KeyValuePair<TcpClient, AvatarContainer> client in _clientAvatars)
-        {
-            
+            Console.WriteLine($"Accepted new client - {newAvatar.ID} -");
+            //Let the newly connected client know it should add an avatar.
+            //After this, the server expects the AvatarContainer back but with a Position assigned (I made the choice to do position generation on the client side, because designers might choose to use some kind of tooling to determine where the avatar should spawn. Or, if in the future a decision is made to use NavMesh, it needs to happen on the client side anyway).
+            //Then, all other clients will be notified of the new avatar including the random position.
+            _requestHandler.SendNewAvatar(client, newAvatar);
         }
     }
 
     private void processExistingClients()
     {
-        checkFaultyClients();
-
+        //Loop over every client and check if they have sent any data to server.
         foreach (KeyValuePair<TcpClient, AvatarContainer> client in _clientAvatars)
         {
-            if (client.Key.Available == 0) continue;
+            if (client.Key.Available == 0) 
+                continue;
 
             ISerializable inObject = readIncomingData(client.Key);
+            Console.WriteLine($"Received object type: {inObject}");
             switch (inObject)
             {
-                case SimpleMessage message:
-                    syncMessagesAcrossClients(message.Text);
-                    break;
+                //Distribute avatar reps (only happens when a new client joins) to all clients
                 case AvatarContainer avatar:
-                    //int index = _clientAvatars.IndexOf(avatar);
+                    Console.WriteLine($"Position of new client null?: {avatar.PosX == 0}");
+                    syncNewAvatarsAcrossClients(client.Key, avatar);
                     break;
-                case PositionRequest positionReq:
-                    _clientAvatars[client.Key].Position = positionReq.Position;
+                //Distribute messages to all clients
+                case SimpleMessage message:
+                    syncMessagesAcrossClients(message);
+                    break;
+                //Distribute position update to all clients.
+                case PositionUpdate positionReq:
+                    syncPositionsAcrossClients(client.Key, positionReq);
                     break;
             }
-
-            Console.WriteLine($"ID: {client.Value.ID}. \nSkinID: {client.Value.SkinID}. " +
-                $"\nPosition: ({client.Value.Position[0]}, {client.Value.Position[1]}, {client.Value.Position[2]})");
         }
     }
 
-    private void syncMessagesAcrossClients(string pMessage)
+    private void syncNewAvatarsAcrossClients(TcpClient pNewClient, AvatarContainer pNewAvatar)
     {
-        foreach(KeyValuePair<TcpClient, AvatarContainer> client in _clientAvatars)
+        List<TcpClient> clients = _clientAvatars.Keys.ToList();
+        Console.WriteLine($"Received random position for new client. Total client count: {clients.Count}");
+        //Other clients must be notified of new client's avatar.
+        for(int i = 0; i < clients.Count; i++)
         {
-            _requestHandler.HandleMessageRequest(client.Key, client.Value.ID, pMessage);
+            TcpClient currentClient = clients[i];
+            if (currentClient == pNewClient)
+                continue;
+
+            Console.WriteLine($"Notifying client {i} of new avatar {pNewAvatar.ID}");
+            _requestHandler.SendNewAvatar(currentClient, pNewAvatar);
+        }
+    }
+
+    private void syncPositionsAcrossClients(TcpClient pClient, PositionUpdate pPositionUpdate)
+    {
+        //_clientAvatars[pClient].PosX = pPositionUpdate.PosX;
+
+        foreach (KeyValuePair<TcpClient, AvatarContainer> client in _clientAvatars)
+        {
+            _requestHandler.SendPositionUpdate(client.Key, pPositionUpdate);
+        }
+    }
+
+    private void syncMessagesAcrossClients(SimpleMessage pMessage)
+    {
+        foreach (KeyValuePair<TcpClient, AvatarContainer> client in _clientAvatars)
+        {
+            _requestHandler.SendMessage(client.Key, pMessage);
         }
     }
 
@@ -108,17 +139,6 @@ class TCPServer
 
     private void checkFaultyClients()
     {
-        Dictionary<TcpClient, AvatarContainer> tempClients = _clientAvatars;
 
-        foreach (KeyValuePair<TcpClient, AvatarContainer> client in _clientAvatars)
-        {
-            if (client.Key.Connected)
-                continue;
-
-            tempClients.Remove(client.Key);
-            Console.WriteLine("removed faulty client.");
-        }
-
-        _clientAvatars = tempClients;
     }
 }

@@ -1,6 +1,6 @@
 ﻿namespace shared
 {
-    public class PositionRequest : ISerializable
+    public class PositionUpdate : ISerializable
     {
         public int ID;
         public float[] Position = new float[3];

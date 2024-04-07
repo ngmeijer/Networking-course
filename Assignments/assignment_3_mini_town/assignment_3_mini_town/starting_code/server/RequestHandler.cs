@@ -14,52 +14,21 @@ namespace server
         {
         }
 
-        public AvatarContainer HandleNewAvatarCreation(TcpClient pClient, int pID)
+        public void SendNewAvatar(TcpClient pClient, AvatarContainer pContainer)
         {
-            AvatarContainer newAvatar = new AvatarContainer()
-            {
-                ID = pID,
-            };
-            SendObject(pClient, newAvatar);
-
-            return newAvatar;
+            SendObject(pClient, pContainer);
         }
 
-        public void HandleMessageRequest(TcpClient pClient, int pID, string pMessage)
+        public void SendMessage(TcpClient pClient, SimpleMessage pMessage)
         {
-            SimpleMessage message = new SimpleMessage()
-            {
-                SenderID = pID,
-                Text = pMessage
-            };
-
-            SendObject(pClient, message);
+            SendObject(pClient, pMessage);
         }
 
-        public void HandleSkinRequest(TcpClient pClient, int pID)
+        public void SendPositionUpdate(TcpClient pClient, PositionUpdate pObject)
         {
-            SkinRequest request = new SkinRequest()
-            {
-                ID = pID,
-                SkinID = -1,
-            };
-
-            SendObject(pClient, request);
+            SendObject(pClient, pObject);
         }
-
-        public void HandlePositionRequest(TcpClient pClient, int pID)
-        {
-            PositionRequest request = new PositionRequest()
-            {
-                ID = pID,
-                Position = new float[3]
-                {
-                    1, 1, 1,
-                },
-            };
-            SendObject(pClient, request);
-        }
-
+      
         public void SendObject(TcpClient pClient, ISerializable pOutObject)
         {
             try

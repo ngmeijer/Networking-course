@@ -57,7 +57,6 @@ namespace shared
 			try
 			{
 				Type type = Type.GetType(ReadString());
-				Console.WriteLine(type.FullName);
 				ISerializable obj = (ISerializable)Activator.CreateInstance(type);
 				obj.Deserialize(this);
 				return obj;
