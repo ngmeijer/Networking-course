@@ -25,7 +25,7 @@ public class AvatarAreaManagerTester : MonoBehaviour
     private void Start()
     {
         _avatarAreaManager = FindObjectOfType<AvatarAreaManager>();
-        _avatarAreaManager.OnAvatarAreaClicked += MoveRandomAvatarToPosition;
+        //_avatarAreaManager.OnAvatarAreaClicked += MoveRandomAvatarToPosition;
     }
 
     /**

@@ -54,8 +54,7 @@ class TCPServer
             AvatarContainer newAvatar = new AvatarContainer()
             {
                 ID = _clientAvatars.Count - 1,
-                ClientID = _clientAvatars.Count - 1,
-                SkinID = 1,
+                SkinID = randomNumberGenerator.Next(0, 100),
             };
             _clientAvatars[client] = newAvatar;
 
@@ -81,7 +80,6 @@ class TCPServer
             {
                 //Distribute avatar reps (only happens when a new client joins) to all clients
                 case AvatarContainer avatar:
-                    Console.WriteLine($"Position of new client null?: {avatar.PosX == 0}");
                     syncNewAvatarsAcrossClients(client.Key, avatar);
                     break;
                 //Distribute messages to all clients
@@ -90,19 +88,17 @@ class TCPServer
                     break;
                 //Distribute position update to all clients.
                 case PositionUpdate positionReq:
-                    //syncPositionsAcrossClients(client.Key, positionReq);
+                    syncPositionsAcrossClients(client.Key, positionReq);
                     break;
             }
         }
     }
 
-    private void syncNewAvatarsAcrossClients(TcpClient pNewClient, AvatarContainer pNewAvatar)
+    private void syncNewAvatarsAcrossClients(TcpClient pNewClient, AvatarContainer pClientReturnedAvatar)
     {
-        if (_clientAvatars.TryGetValue(pNewClient, out AvatarContainer avatar))
+        if (_clientAvatars.TryGetValue(pNewClient, out AvatarContainer storedAvatar))
         {
-            avatar.PosX = pNewAvatar.PosX;
-            avatar.PosY = pNewAvatar.PosY;
-            avatar.PosZ = pNewAvatar.PosZ;
+            storedAvatar.Position = pClientReturnedAvatar.Position;
         }
 
         List<TcpClient> clients = _clientAvatars.Keys.ToList();
@@ -127,17 +123,18 @@ class TCPServer
                 continue;
             }
 
-            Console.WriteLine($"Notifying client {clientIndex} of new avatar {pNewAvatar.ID}");
-            _requestHandler.SendNewAvatar(currentClient, pNewAvatar);
+            Console.WriteLine($"Notifying client {clientIndex} of new avatar {pClientReturnedAvatar.ID}");
+            _requestHandler.SendNewAvatar(currentClient, pClientReturnedAvatar);
         }
     }
 
     private void syncPositionsAcrossClients(TcpClient pClient, PositionUpdate pPositionUpdate)
     {
-        //_clientAvatars[pClient].PosX = pPositionUpdate.PosX;
+        _clientAvatars[pClient].Position = pPositionUpdate.Position;
 
         foreach (KeyValuePair<TcpClient, AvatarContainer> client in _clientAvatars)
         {
+            Console.WriteLine($"Moving avatar {pPositionUpdate.ID} for client {client.Value.ID} to position ({pPositionUpdate.Position[0]},{pPositionUpdate.Position[1]}, {pPositionUpdate.Position[2]})");
             _requestHandler.SendPositionUpdate(client.Key, pPositionUpdate);
         }
     }

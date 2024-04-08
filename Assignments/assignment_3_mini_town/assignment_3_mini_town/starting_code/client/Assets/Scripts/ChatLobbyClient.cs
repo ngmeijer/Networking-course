@@ -25,7 +25,7 @@ public class ChatLobbyClient : MonoBehaviour
     private int _ownID;
 
     [Tooltip("How far away from the center of the scene will we spawn avatars?")]
-    public float spawnRange = 10;
+    public float spawnRange = 13;
     [Tooltip("What is the minimum angle from the center we are spawning the avatar at?")]
     public float spawnMinAngle = 0;
     [Tooltip("What is the maximum angle from the center we are spawning the avatar at?")]
@@ -60,17 +60,17 @@ public class ChatLobbyClient : MonoBehaviour
 
     private void onAvatarAreaClicked(Vector3 pClickPosition)
     {
-        //Not handling moving correctly yet.
+        PositionUpdate outObject = new PositionUpdate()
+        {
+            ID = _ownID,
+            Position = new float[3]{
+                pClickPosition.x,
+                pClickPosition.y,
+                pClickPosition.z
+            }
+        };
 
-        //PositionUpdate outObject = new PositionUpdate();
-        //outObject.ID = _ownID;
-        //outObject.Position = new float[3]
-        //{
-        //    pClickPosition.x,
-        //    pClickPosition.y,
-        //    pClickPosition.z
-        //};
-        //sendObject(outObject);
+        sendObject(outObject);
     }
 
     private void onChatTextEntered(string pText)
@@ -107,7 +107,7 @@ public class ChatLobbyClient : MonoBehaviour
             byte[] inBytes = StreamUtil.Read(_client.GetStream());
             Packet inPacket = new Packet(inBytes);
             ISerializable incomingObject = inPacket.ReadObject();
-            Debug.Log(incomingObject);
+            Debug.Log($"Incoming object null?: {incomingObject == null}. Name: {incomingObject}.");
             return incomingObject;
         }
         catch (Exception e)
@@ -176,11 +176,12 @@ public class ChatLobbyClient : MonoBehaviour
     {
         _areaManager.GetAvatarView(pIncomingObject.ID).SetSkin(pIncomingObject.SkinID);
     }
-    
+
     private void handlePositionUpdate(PositionUpdate pIncomingObject)
     {
         Vector3 newPosition = new Vector3(pIncomingObject.Position[0], pIncomingObject.Position[1], pIncomingObject.Position[2]);
         _areaManager.GetAvatarView(pIncomingObject.ID).Move(newPosition);
+        Debug.Log($"Moving avatar {pIncomingObject.ID} to {newPosition}");
     }
 
     private void handleNewAvatar(AvatarContainer pIncomingObject)
@@ -188,15 +189,14 @@ public class ChatLobbyClient : MonoBehaviour
         Debug.Log($"Incoming AvatarContainer null?: {pIncomingObject == null}");
         Debug.Log($"AreaManager null?: {_areaManager == null}");
 
-        Vector3 avatarPosition = new Vector3(pIncomingObject.PosX, pIncomingObject.PosY, pIncomingObject.PosZ);
-        Debug.Log($"Incoming PositionArray null?: {avatarPosition == Vector3.zero}");
+        Vector3 avatarPosition = new Vector3(pIncomingObject.Position[0], pIncomingObject.Position[1], pIncomingObject.Position[2]);
 
         //The position is not assigned yet, so it must mean the AvatarContainer should be controlled by this client.
         if (avatarPosition == Vector3.zero)
         {
             Debug.Log("Position is not set yet for new Avatar.");
             _ownID = pIncomingObject.ID;
-            avatarPosition = sendPosition(pIncomingObject);
+            avatarPosition = sendInitialPosition(pIncomingObject);
         }
 
         //Create new avatar instance with ID provided BY SERVER
@@ -206,16 +206,17 @@ public class ChatLobbyClient : MonoBehaviour
         avatarView.transform.localPosition = avatarPosition;
     }
 
-    private Vector3 sendPosition(AvatarContainer pIncomingObject)
+    private Vector3 sendInitialPosition(AvatarContainer pIncomingObject)
     {
         Vector3 randomPos = getRandomPosition();
         ISerializable outObject = new AvatarContainer()
         {
             ID = pIncomingObject.ID,
             SkinID = pIncomingObject.SkinID,
-            PosX = randomPos.x,
-            PosY = randomPos.y,
-            PosZ = randomPos.z,
+            Position = new float[3]
+            {
+                randomPos.x, randomPos.y, randomPos.z
+            },
         };
         sendObject(outObject);
 
