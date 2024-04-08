@@ -8,6 +8,7 @@ using System.Threading;
 using System.Diagnostics;
 using server;
 using System.Linq;
+using System.Runtime.Remoting.Messaging;
 
 /**
  * This class implements a simple tcp echo server.
@@ -71,6 +72,8 @@ class TCPServer
         //Loop over every client and check if they have sent any data to server.
         foreach (KeyValuePair<TcpClient, AvatarContainer> client in _clientAvatars)
         {
+            _requestHandler.SendHeartBeat();
+
             if (client.Key.Available == 0) 
                 continue;
 
@@ -84,7 +87,7 @@ class TCPServer
                     break;
                 //Distribute messages to all clients
                 case SimpleMessage message:
-                    syncMessagesAcrossClients(message);
+                    syncMessagesAcrossClients(client.Key, message);
                     break;
                 //Distribute position update to all clients.
                 case PositionUpdate positionReq:
@@ -139,12 +142,60 @@ class TCPServer
         }
     }
 
-    private void syncMessagesAcrossClients(SimpleMessage pMessage)
+    private void syncMessagesAcrossClients(TcpClient pSender, SimpleMessage pMessage)
     {
-        foreach (KeyValuePair<TcpClient, AvatarContainer> client in _clientAvatars)
+        foreach (KeyValuePair<TcpClient, AvatarContainer> receiver in _clientAvatars)
         {
-            _requestHandler.SendMessage(client.Key, pMessage);
+            //If it is not a whisper message, send it to all avatars.
+            if (!isWhisperMessage(pMessage))
+            {
+                _requestHandler.SendMessage(receiver.Key, pMessage);
+                continue;
+            }
+
+            //Take out the /whisper command
+            pMessage = filterMessage(pMessage);
+
+            //
+            if (receiver.Key != pSender && isReceiverInRange(2, pMessage.Position, receiver.Value.Position))
+            {
+                _requestHandler.SendMessage(receiver.Key, pMessage);
+            }
         }
+    }
+
+    private SimpleMessage filterMessage(SimpleMessage pMessage)
+    {
+        string text = pMessage.Text;
+        string command = "/whisper";
+        int index = text.IndexOf(command);
+        string filteredMessage = pMessage.Text.Substring(index + command.Length).Trim();
+        pMessage.Text = filteredMessage;
+
+        return pMessage;
+    }
+
+    private bool isWhisperMessage(SimpleMessage pMessage)
+    {
+        string[] data = pMessage.Text.Split();
+        if (data[0] == "/whisper")
+            return true;
+
+        return false;
+    }
+
+    private bool isReceiverInRange(float pMaxDistance, float[] pAvatarSenderPosition, float[] pAvatarReceiverPosition)
+    {
+        double xDifference = pAvatarSenderPosition[0] - pAvatarReceiverPosition[0];
+        double yDifference = pAvatarSenderPosition[1] - pAvatarReceiverPosition[1];
+        double zDifference = pAvatarSenderPosition[2] - pAvatarReceiverPosition[2];
+
+        double distance = Math.Sqrt(Math.Pow(xDifference, 2) + Math.Pow(yDifference, 2) + Math.Pow(zDifference, 2));
+        Console.WriteLine($"Distance: {distance}");
+        if (distance <= pMaxDistance)
+            return true;
+
+        return false;
     }
 
     private ISerializable readIncomingData(TcpClient pSender)

@@ -42,5 +42,10 @@ namespace server
                 Console.WriteLine(e.Message);
             }
         }
+
+        public void SendHeartBeat(TcpClient pClient)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

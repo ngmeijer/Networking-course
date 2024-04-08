@@ -1,4 +1,5 @@
 ﻿using shared;
+using shared.src.protocol;
 using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
@@ -88,8 +89,16 @@ public class ChatLobbyClient : MonoBehaviour
     {
         try
         {
-            SimpleMessage message = new SimpleMessage();
-            message.Text = pOutString;
+            Vector3 currentPosition = _areaManager.GetAvatarView(_ownID).transform.localPosition;
+            SimpleMessage message = new SimpleMessage()
+            {
+                SenderID = _ownID,
+                Text = pOutString,
+                Position = new float[3]
+                {
+                    currentPosition.x, currentPosition.y, currentPosition.z
+                },
+            };
             sendObject(message);
         }
         catch (Exception e)
@@ -169,7 +178,19 @@ public class ChatLobbyClient : MonoBehaviour
             case SkinRequest skinRequest:
                 handleSkinRequest(skinRequest);
                 break;
+            case HeartBeat heartBeat:
+                handleHeartBeatUpdate(heartBeat);
+                break;
         }
+    }
+
+    private void handleHeartBeatUpdate(HeartBeat pBeat)
+    {
+        HeartBeat heartBeat = new HeartBeat()
+        {
+            ClientID = _ownID
+        };
+        sendObject(heartBeat);
     }
 
     private void handleSkinRequest(SkinRequest pIncomingObject)
