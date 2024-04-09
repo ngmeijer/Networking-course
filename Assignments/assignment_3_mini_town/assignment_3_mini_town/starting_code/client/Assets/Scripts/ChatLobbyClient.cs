@@ -168,8 +168,7 @@ public class ChatLobbyClient : MonoBehaviour
             case SimpleMessage message:
                 handleSimpleMessage(message);
                 break;
-            //Only triggered upon new clients joining.
-            case AvatarContainer avatarContainer:
+            case NewAvatar avatarContainer:
                 handleNewAvatar(avatarContainer);
                 break;
             case PositionUpdate positionUpdate:
@@ -179,12 +178,31 @@ public class ChatLobbyClient : MonoBehaviour
                 handleSkinRequest(skinRequest);
                 break;
             case HeartBeat heartBeat:
-                handleHeartBeatUpdate(heartBeat);
+                handleHeartBeatUpdate();
+                break;
+            case DeadAvatar deadAvatar:
+                //handleAvatarRemove(deadAvatar);
+                break;
+            case ExistingAvatars existingAvatars:
+                handleExistingAvatars(existingAvatars);
                 break;
         }
     }
 
-    private void handleHeartBeatUpdate(HeartBeat pBeat)
+    private void handleExistingAvatars(ExistingAvatars pExistingAvatars)
+    {
+        foreach(NewAvatar avatar in pExistingAvatars.Avatars)
+        {
+            handleNewAvatar(avatar);
+        }
+    }
+
+    private void handleAvatarRemove(DeadAvatar pDeadAvatar)
+    {
+        _areaManager.RemoveAvatarView(pDeadAvatar.ID);
+    }
+
+    private void handleHeartBeatUpdate()
     {
         HeartBeat heartBeat = new HeartBeat()
         {
@@ -205,7 +223,7 @@ public class ChatLobbyClient : MonoBehaviour
         Debug.Log($"Moving avatar {pIncomingObject.ID} to {newPosition}");
     }
 
-    private void handleNewAvatar(AvatarContainer pIncomingObject)
+    private void handleNewAvatar(NewAvatar pIncomingObject)
     {
         Debug.Log($"Incoming AvatarContainer null?: {pIncomingObject == null}");
         Debug.Log($"AreaManager null?: {_areaManager == null}");
@@ -227,10 +245,10 @@ public class ChatLobbyClient : MonoBehaviour
         avatarView.transform.localPosition = avatarPosition;
     }
 
-    private Vector3 sendInitialPosition(AvatarContainer pIncomingObject)
+    private Vector3 sendInitialPosition(NewAvatar pIncomingObject)
     {
         Vector3 randomPos = getRandomPosition();
-        ISerializable outObject = new AvatarContainer()
+        ISerializable outObject = new NewAvatar()
         {
             ID = pIncomingObject.ID,
             SkinID = pIncomingObject.SkinID,

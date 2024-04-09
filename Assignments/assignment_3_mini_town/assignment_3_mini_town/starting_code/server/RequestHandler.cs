@@ -1,4 +1,5 @@
 ﻿using shared;
+using shared.src.protocol;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,7 +15,7 @@ namespace server
         {
         }
 
-        public void SendNewAvatar(TcpClient pClient, AvatarContainer pContainer)
+        public void SendNewAvatar(TcpClient pClient, NewAvatar pContainer)
         {
             SendObject(pClient, pContainer);
         }
@@ -43,9 +44,19 @@ namespace server
             }
         }
 
-        public void SendHeartBeat(TcpClient pClient)
+        public void SendHeartBeat(TcpClient pClient, HeartBeat pHeartBeat)
         {
-            throw new NotImplementedException();
+            SendObject(pClient, new HeartBeat());
+        }
+
+        public void SendAvatarRemove(TcpClient pClient, DeadAvatar pDeadAvatar)
+        {
+            SendObject(pClient, pDeadAvatar);
+        }
+
+        public void SendExistingClients(TcpClient pClient, ExistingAvatars pObject)
+        {
+            SendObject(pClient, pObject);
         }
     }
 }

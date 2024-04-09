@@ -9,6 +9,7 @@ using System.Diagnostics;
 using server;
 using System.Linq;
 using System.Runtime.Remoting.Messaging;
+using shared.src.protocol;
 
 /**
  * This class implements a simple tcp echo server.
@@ -19,6 +20,9 @@ class TCPServer
 {
     private Random randomNumberGenerator = new Random();
     private RequestHandler _requestHandler = new RequestHandler();
+    private List<TcpClient> _connectedClients = new List<TcpClient>();
+
+    private const float HEARTBEAT_INTERVAL = 2f;
 
     public static void Main(string[] args)
     {
@@ -27,7 +31,7 @@ class TCPServer
     }
 
     private TcpListener _listener;
-    private Dictionary<TcpClient, AvatarContainer> _clientAvatars = new Dictionary<TcpClient, AvatarContainer>();
+    private Dictionary<TcpClient, NewAvatar> _clientAvatars = new Dictionary<TcpClient, NewAvatar>();
 
     private void run()
     {
@@ -38,9 +42,9 @@ class TCPServer
 
         while (true)
         {
+            //checkFaultyClients();
             processNewClients();
             processExistingClients();
-            checkFaultyClients();
 
             Thread.Sleep(100);
         }
@@ -52,7 +56,7 @@ class TCPServer
         {
             TcpClient client = _listener.AcceptTcpClient();
             _clientAvatars.Add(client, null);
-            AvatarContainer newAvatar = new AvatarContainer()
+            NewAvatar newAvatar = new NewAvatar()
             {
                 ID = _clientAvatars.Count - 1,
                 SkinID = randomNumberGenerator.Next(0, 100),
@@ -70,64 +74,79 @@ class TCPServer
     private void processExistingClients()
     {
         //Loop over every client and check if they have sent any data to server.
-        foreach (KeyValuePair<TcpClient, AvatarContainer> client in _clientAvatars)
+        foreach (KeyValuePair<TcpClient, NewAvatar> incomingDataFromClient in _clientAvatars)
         {
-            _requestHandler.SendHeartBeat();
-
-            if (client.Key.Available == 0) 
+            if (incomingDataFromClient.Key.Available == 0)
                 continue;
 
-            ISerializable inObject = readIncomingData(client.Key);
+            ISerializable inObject = readIncomingData(incomingDataFromClient.Key);
             Console.WriteLine($"Received object type: {inObject}");
             switch (inObject)
             {
                 //Distribute avatar reps (only happens when a new client joins) to all clients
-                case AvatarContainer avatar:
-                    syncNewAvatarsAcrossClients(client.Key, avatar);
+                case NewAvatar avatar:
+                    syncNewAvatarsAcrossClients(incomingDataFromClient.Key, avatar);
                     break;
                 //Distribute messages to all clients
                 case SimpleMessage message:
-                    syncMessagesAcrossClients(client.Key, message);
+                    syncMessagesAcrossClients(incomingDataFromClient.Key, message);
                     break;
                 //Distribute position update to all clients.
                 case PositionUpdate positionReq:
-                    syncPositionsAcrossClients(client.Key, positionReq);
+                    syncPositionsAcrossClients(incomingDataFromClient.Key, positionReq);
+                    break;
+                case HeartBeat heartBeat:
+                    _connectedClients.Add(incomingDataFromClient.Key);
                     break;
             }
         }
     }
 
-    private void syncNewAvatarsAcrossClients(TcpClient pNewClient, AvatarContainer pClientReturnedAvatar)
+    private void checkFaultyClients()
     {
-        if (_clientAvatars.TryGetValue(pNewClient, out AvatarContainer storedAvatar))
+        _connectedClients.Clear();
+
+        Dictionary<TcpClient, NewAvatar> disconnectedClients = new Dictionary<TcpClient, NewAvatar>();
+        foreach (KeyValuePair<TcpClient, NewAvatar> heartbeatCheck in _clientAvatars)
         {
-            storedAvatar.Position = pClientReturnedAvatar.Position;
+            _requestHandler.SendHeartBeat(heartbeatCheck.Key, new HeartBeat() { ClientID = heartbeatCheck.Value.ID });
+        }
+
+        foreach (KeyValuePair<TcpClient, NewAvatar> disconnectedClient in disconnectedClients)
+        {
+            _clientAvatars.Remove(disconnectedClient.Key);
+        }
+
+        foreach (KeyValuePair<TcpClient, NewAvatar> heartbeatCheck in _clientAvatars)
+        {
+            _requestHandler.SendAvatarRemove(heartbeatCheck.Key, new DeadAvatar() { ID = heartbeatCheck.Value.ID });
+        }
+    }
+
+    private void syncNewAvatarsAcrossClients(TcpClient pNewClient, NewAvatar pClientReturnedAvatar)
+    {
+        //Update the position the avatar has been given.
+        if (_clientAvatars.TryGetValue(pNewClient, out NewAvatar storedNewAvatar))
+        {
+            storedNewAvatar.Position = pClientReturnedAvatar.Position;
         }
 
         List<TcpClient> clients = _clientAvatars.Keys.ToList();
         Console.WriteLine($"Received random position for new client. Total client count: {clients.Count}");
-        //Other clients must be notified of new client's avatar.
-        for(int clientIndex = 0; clientIndex < clients.Count; clientIndex++)
+
+        //Convert avatar.Value to a "writer" package. The ones stored are used for reading and so don't have the BinaryWriter assigned.
+        ExistingAvatars existingAvatars = new ExistingAvatars()
+        {
+            Avatars = _clientAvatars.Values.ToList()
+        };
+        //Send the existing clients *in 1 package* to the new client.
+        _requestHandler.SendExistingClients(pNewClient, existingAvatars);
+
+        //Let the existing clients know about the new client.
+        for (int clientIndex = 0; clientIndex < clients.Count; clientIndex++)
         {
             TcpClient currentClient = clients[clientIndex];
-
-            //If the current client in the list IS the new client, send the avatars of existing clients to the new client as well.
-            if (currentClient == pNewClient)
-            {
-                //Loop over clients/avatars.
-                foreach(KeyValuePair<TcpClient, AvatarContainer> pair in _clientAvatars)
-                {
-                    //If the loop hits the new client itself, skip it. Otherwise client side throws error that an avatar already exists (+ unnecessary traffic)
-                    if (pair.Key == pNewClient)
-                        continue;
-
-                    _requestHandler.SendNewAvatar(pNewClient, pair.Value);
-                }
-                continue;
-            }
-
-            Console.WriteLine($"Notifying client {clientIndex} of new avatar {pClientReturnedAvatar.ID}");
-            _requestHandler.SendNewAvatar(currentClient, pClientReturnedAvatar);
+            _requestHandler.SendNewAvatar(currentClient, storedNewAvatar);
         }
     }
 
@@ -135,7 +154,7 @@ class TCPServer
     {
         _clientAvatars[pClient].Position = pPositionUpdate.Position;
 
-        foreach (KeyValuePair<TcpClient, AvatarContainer> client in _clientAvatars)
+        foreach (KeyValuePair<TcpClient, NewAvatar> client in _clientAvatars)
         {
             Console.WriteLine($"Moving avatar {pPositionUpdate.ID} for client {client.Value.ID} to position ({pPositionUpdate.Position[0]},{pPositionUpdate.Position[1]}, {pPositionUpdate.Position[2]})");
             _requestHandler.SendPositionUpdate(client.Key, pPositionUpdate);
@@ -144,7 +163,7 @@ class TCPServer
 
     private void syncMessagesAcrossClients(TcpClient pSender, SimpleMessage pMessage)
     {
-        foreach (KeyValuePair<TcpClient, AvatarContainer> receiver in _clientAvatars)
+        foreach (KeyValuePair<TcpClient, NewAvatar> receiver in _clientAvatars)
         {
             //If it is not a whisper message, send it to all avatars.
             if (!isWhisperMessage(pMessage))
@@ -203,10 +222,5 @@ class TCPServer
         byte[] inBytes = StreamUtil.Read(pSender.GetStream());
         Packet inPacket = new Packet(inBytes);
         return inPacket.ReadObject();
-    }
-
-    private void checkFaultyClients()
-    {
-
     }
 }

@@ -2,7 +2,7 @@
 
 namespace shared
 {
-    public class AvatarContainer : ISerializable
+    public class NewAvatar : ISerializable
     {
         public int ID;
         public int SkinID;
