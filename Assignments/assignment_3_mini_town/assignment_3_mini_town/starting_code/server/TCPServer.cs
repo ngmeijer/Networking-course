@@ -10,6 +10,7 @@ using server;
 using System.Linq;
 using System.Runtime.Remoting.Messaging;
 using shared.src.protocol;
+using shared.src;
 
 /**
  * This class implements a simple tcp echo server.
@@ -125,29 +126,44 @@ class TCPServer
 
     private void syncNewAvatarsAcrossClients(TcpClient pNewClient, NewAvatar pClientReturnedAvatar)
     {
-        //Update the position the avatar has been given.
-        if (_clientAvatars.TryGetValue(pNewClient, out NewAvatar storedNewAvatar))
+        //Update the position received from the client
+        _clientAvatars.TryGetValue(pNewClient, out NewAvatar storedNewAvatar);
+        storedNewAvatar.Position = pClientReturnedAvatar.Position;
+
+        if (_clientAvatars.Count > 1)
         {
-            storedNewAvatar.Position = pClientReturnedAvatar.Position;
+            //Send all avatars to new client
+            ExistingAvatars existingAvatarsContainer = new ExistingAvatars()
+            {
+                AvatarCount = _clientAvatars.Count,
+                Avatars = new NewAvatar[_clientAvatars.Count]
+            };
+
+            NewAvatar[] avatarArray = _clientAvatars.Values.ToArray();
+            for(int i = 0; i < _clientAvatars.Count; i++)
+            {
+                NewAvatar currentAvatar = avatarArray[i];
+                existingAvatarsContainer.Avatars[i] = new NewAvatar()
+                {
+                    ID = currentAvatar.ID,
+                    SkinID = currentAvatar.SkinID,
+                    Position = currentAvatar.Position,
+                };
+            }
+            
+            //for(int i = 0; i < tempAvatars.Length; i++)
+            //{
+            //    existingAvatarsContainer.AvatarIDs[i] = tempAvatars[i].ID;
+            //}
+
+            _requestHandler.SendExistingClients(pNewClient, existingAvatarsContainer);
         }
 
-        List<TcpClient> clients = _clientAvatars.Keys.ToList();
-        Console.WriteLine($"Received random position for new client. Total client count: {clients.Count}");
-
-        //Convert avatar.Value to a "writer" package. The ones stored are used for reading and so don't have the BinaryWriter assigned.
-        ExistingAvatars existingAvatars = new ExistingAvatars()
-        {
-            Avatars = _clientAvatars.Values.ToList()
-        };
-        //Send the existing clients *in 1 package* to the new client.
-        _requestHandler.SendExistingClients(pNewClient, existingAvatars);
-
-        //Let the existing clients know about the new client.
-        for (int clientIndex = 0; clientIndex < clients.Count; clientIndex++)
-        {
-            TcpClient currentClient = clients[clientIndex];
-            _requestHandler.SendNewAvatar(currentClient, storedNewAvatar);
-        }
+        ////Update existing clients about new avatar.
+        //foreach(KeyValuePair<TcpClient, NewAvatar> pair in _clientAvatars)
+        //{
+        //    _requestHandler.SendNewAvatar(pair.Key, storedNewAvatar);
+        //}
     }
 
     private void syncPositionsAcrossClients(TcpClient pClient, PositionUpdate pPositionUpdate)
@@ -156,7 +172,7 @@ class TCPServer
 
         foreach (KeyValuePair<TcpClient, NewAvatar> client in _clientAvatars)
         {
-            Console.WriteLine($"Moving avatar {pPositionUpdate.ID} for client {client.Value.ID} to position ({pPositionUpdate.Position[0]},{pPositionUpdate.Position[1]}, {pPositionUpdate.Position[2]})");
+            Console.WriteLine($"Moving avatar {pPositionUpdate.ID} for client {client.Value.ID} to position ({pPositionUpdate.Position.ToString()})");
             _requestHandler.SendPositionUpdate(client.Key, pPositionUpdate);
         }
     }
@@ -203,11 +219,11 @@ class TCPServer
         return false;
     }
 
-    private bool isReceiverInRange(float pMaxDistance, float[] pAvatarSenderPosition, float[] pAvatarReceiverPosition)
+    private bool isReceiverInRange(float pMaxDistance, Vector3 pAvatarSenderPosition, Vector3 pAvatarReceiverPosition)
     {
-        double xDifference = pAvatarSenderPosition[0] - pAvatarReceiverPosition[0];
-        double yDifference = pAvatarSenderPosition[1] - pAvatarReceiverPosition[1];
-        double zDifference = pAvatarSenderPosition[2] - pAvatarReceiverPosition[2];
+        double xDifference = pAvatarSenderPosition.x - pAvatarReceiverPosition.x;
+        double yDifference = pAvatarSenderPosition.y - pAvatarReceiverPosition.y;
+        double zDifference = pAvatarSenderPosition.z - pAvatarReceiverPosition.z;
 
         double distance = Math.Sqrt(Math.Pow(xDifference, 2) + Math.Pow(yDifference, 2) + Math.Pow(zDifference, 2));
         Console.WriteLine($"Distance: {distance}");

@@ -1,4 +1,5 @@
-﻿using System.Security.Cryptography;
+﻿using shared.src;
+using System.Security.Cryptography;
 
 namespace shared
 {
@@ -6,29 +7,20 @@ namespace shared
     {
         public int ID;
         public int SkinID;
-
-        public float[] Position = new float[3];
+        public Vector3 Position = new Vector3 (0, 0, 0);
 
         public void Serialize(Packet pPacket)
         {
             pPacket.Write(ID);
             pPacket.Write(SkinID);
-
-            for (int i = 0; i < 3; i++)
-            {
-                pPacket.Write(Position[i]);
-            }
+            pPacket.Write(Position);
         }
 
         public void Deserialize(Packet pPacket)
         {
             ID = pPacket.ReadInt();
             SkinID = pPacket.ReadInt();
-
-            for (int i = 0; i < 3; i++)
-            {
-                Position[i] = pPacket.ReadFloat();
-            }
+            pPacket.ReadVector3();
         }
     }
 }

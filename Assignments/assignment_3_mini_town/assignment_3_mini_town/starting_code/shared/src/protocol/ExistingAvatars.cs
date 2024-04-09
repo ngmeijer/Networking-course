@@ -3,39 +3,44 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace shared.src.protocol
 {
     public class ExistingAvatars : ISerializable
     {
-        public List<NewAvatar> Avatars;
-
-        public void Deserialize(Packet pPacket)
-        {
-            for (int i = 0; i < Avatars.Count; i++)
-            {
-                NewAvatar currentAvatar = Avatars[i];
-                currentAvatar.ID = pPacket.ReadInt();
-                currentAvatar.SkinID = pPacket.ReadInt();
-
-                for (int positionIndex = 0; positionIndex < 3; positionIndex++)
-                {
-                    currentAvatar.Position[positionIndex] = pPacket.ReadFloat();
-                }
-            }
-        }
+        public int AvatarCount;
+        public NewAvatar[] Avatars = new NewAvatar[2];
 
         public void Serialize(Packet pPacket)
         {
-            for (int i = 0; i < Avatars.Count; i++)
+            pPacket.Write(AvatarCount);
+
+            for (int avatarIndex = 0; avatarIndex < Avatars.Length; avatarIndex++)
             {
-                NewAvatar currentAvatar = Avatars[i];
-                pPacket.Write(currentAvatar.ID);
-                pPacket.Write(currentAvatar.SkinID);
-                for (int positionIndex = 0; positionIndex < 3; positionIndex++)
-                {
-                    pPacket.Write(currentAvatar.Position[positionIndex]);
-                }
+                NewAvatar newAvatar = Avatars[avatarIndex];
+
+                Avatars[avatarIndex] = newAvatar;
+
+                Console.WriteLine($"Writing ID {Avatars[avatarIndex].ID} to packet");
+                pPacket.Write(Avatars[avatarIndex].ID);
+                pPacket.Write(Avatars[avatarIndex].SkinID);
+                pPacket.Write(Avatars[avatarIndex].Position);
+            }
+        }
+        public void Deserialize(Packet pPacket)
+        {
+            AvatarCount = pPacket.ReadInt();
+
+            Avatars = new NewAvatar[AvatarCount];
+            for (int avatarIndex = 0; avatarIndex < Avatars.Length; avatarIndex++)
+            {
+                NewAvatar newAvatar = new NewAvatar();
+                newAvatar.ID = pPacket.ReadInt();
+                newAvatar.SkinID = pPacket.ReadInt();
+                newAvatar.Position = pPacket.ReadVector3();
+
+                Avatars[avatarIndex] = newAvatar;
             }
         }
     }

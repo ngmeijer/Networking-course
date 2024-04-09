@@ -64,11 +64,7 @@ public class ChatLobbyClient : MonoBehaviour
         PositionUpdate outObject = new PositionUpdate()
         {
             ID = _ownID,
-            Position = new float[3]{
-                pClickPosition.x,
-                pClickPosition.y,
-                pClickPosition.z
-            }
+            Position = new shared.src.Vector3(pClickPosition.x, pClickPosition.y, pClickPosition.z)
         };
 
         sendObject(outObject);
@@ -94,10 +90,7 @@ public class ChatLobbyClient : MonoBehaviour
             {
                 SenderID = _ownID,
                 Text = pOutString,
-                Position = new float[3]
-                {
-                    currentPosition.x, currentPosition.y, currentPosition.z
-                },
+                Position = new shared.src.Vector3(currentPosition.x, currentPosition.y, currentPosition.z)
             };
             sendObject(message);
         }
@@ -121,7 +114,7 @@ public class ChatLobbyClient : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.Log(e.Message);
+            Debug.Log($"Exception at receiveObject(): {e.Message}");
             return null;
         }
     }
@@ -191,9 +184,13 @@ public class ChatLobbyClient : MonoBehaviour
 
     private void handleExistingAvatars(ExistingAvatars pExistingAvatars)
     {
-        foreach(NewAvatar avatar in pExistingAvatars.Avatars)
+        Debug.Log($"avatar id array null? {pExistingAvatars.Avatars == null}");
+        Debug.Log($"avatar id array length {pExistingAvatars.Avatars.Length}");
+
+        foreach (NewAvatar avatar in pExistingAvatars.Avatars)
         {
-            handleNewAvatar(avatar);
+            if(avatar != null)
+                Debug.Log($"avatar id: {avatar.ID}");
         }
     }
 
@@ -218,31 +215,38 @@ public class ChatLobbyClient : MonoBehaviour
 
     private void handlePositionUpdate(PositionUpdate pIncomingObject)
     {
-        Vector3 newPosition = new Vector3(pIncomingObject.Position[0], pIncomingObject.Position[1], pIncomingObject.Position[2]);
+        Vector3 newPosition = new Vector3(pIncomingObject.Position.x, pIncomingObject.Position.y, pIncomingObject.Position.z);
         _areaManager.GetAvatarView(pIncomingObject.ID).Move(newPosition);
-        Debug.Log($"Moving avatar {pIncomingObject.ID} to {newPosition}");
     }
 
     private void handleNewAvatar(NewAvatar pIncomingObject)
     {
-        Debug.Log($"Incoming AvatarContainer null?: {pIncomingObject == null}");
-        Debug.Log($"AreaManager null?: {_areaManager == null}");
-
-        Vector3 avatarPosition = new Vector3(pIncomingObject.Position[0], pIncomingObject.Position[1], pIncomingObject.Position[2]);
-
-        //The position is not assigned yet, so it must mean the AvatarContainer should be controlled by this client.
-        if (avatarPosition == Vector3.zero)
+        try
         {
-            Debug.Log("Position is not set yet for new Avatar.");
-            _ownID = pIncomingObject.ID;
-            avatarPosition = sendInitialPosition(pIncomingObject);
-        }
+            Vector3 avatarPosition = new Vector3(pIncomingObject.Position.x, pIncomingObject.Position.y, pIncomingObject.Position.z);
 
-        //Create new avatar instance with ID provided BY SERVER
-        AvatarView avatarView = _areaManager.AddAvatarView(pIncomingObject.ID);
-        Debug.Log($"Added avatarView with ID: {pIncomingObject.ID}");
-        avatarView.SetSkin(pIncomingObject.SkinID);
-        avatarView.transform.localPosition = avatarPosition;
+            //The position is not assigned yet, so it must mean this is
+            //the NewAvatar that is meant to be controlled by this client
+            if (avatarPosition == Vector3.zero)
+            {
+                Debug.Log("Position is not set yet for new Avatar.");
+                _ownID = pIncomingObject.ID;
+                avatarPosition = sendInitialPosition(pIncomingObject);
+            }
+
+            createNewAvatar(pIncomingObject.ID, pIncomingObject.SkinID, avatarPosition);
+        }
+        catch(Exception e)
+        {
+            Debug.Log($"Error on adding new avatar: {e.Message}");
+        }
+    }
+
+    private void createNewAvatar(int pID, int pSkinID, Vector3 pPosition)
+    {
+        AvatarView avatarView = _areaManager.AddAvatarView(pID);
+        avatarView.SetSkin(pSkinID);
+        avatarView.transform.localPosition = pPosition;
     }
 
     private Vector3 sendInitialPosition(NewAvatar pIncomingObject)
@@ -252,10 +256,7 @@ public class ChatLobbyClient : MonoBehaviour
         {
             ID = pIncomingObject.ID,
             SkinID = pIncomingObject.SkinID,
-            Position = new float[3]
-            {
-                randomPos.x, randomPos.y, randomPos.z
-            },
+            Position = new shared.src.Vector3(randomPos.x, randomPos.y, randomPos.z)
         };
         sendObject(outObject);
 
