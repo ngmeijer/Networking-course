@@ -41,7 +41,7 @@ public class IncomingDataHelper : MonoBehaviour
                 handleHeartBeatUpdate();
                 break;
             case DeadAvatar deadAvatar:
-                //handleAvatarRemove(deadAvatar);
+                handleAvatarRemove(deadAvatar);
                 break;
             case ExistingAvatars existingAvatars:
                 handleExistingAvatars(existingAvatars);
@@ -71,7 +71,7 @@ public class IncomingDataHelper : MonoBehaviour
         {
             ClientID = OwnID
         };
-
+        Debug.Log("Sending heartbeat response");
         OnDataGoingOut(heartBeat);
     }
 

@@ -24,7 +24,7 @@ class TCPServer
     private List<TcpClient> _connectedClients = new List<TcpClient>();
     private DataProcessor _dataProcessor;
 
-    private const float HEARTBEAT_INTERVAL = 1f;
+    private const float HEARTBEAT_INTERVAL = 10f;
     private float _currentHeartbeat;
 
     public static void Main(string[] args)
@@ -46,12 +46,53 @@ class TCPServer
 
         while (true)
         {
+            checkFaultyClients();
             processNewClients();
-            //checkFaultyClients();
             processExistingClients();
 
             Thread.Sleep(100);
         }
+    }
+
+    private void checkFaultyClients()
+    {
+        if (_currentHeartbeat >= HEARTBEAT_INTERVAL)
+        {
+            Console.WriteLine($"Checking faulty clients... connected clients: {_connectedClients.Count}");
+            Dictionary<TcpClient, NewAvatar> disconnectedClients = new Dictionary<TcpClient, NewAvatar>();
+            foreach (KeyValuePair<TcpClient, NewAvatar> pair in _clientAvatars)
+            {
+                if (_connectedClients.Contains(pair.Key))
+                    continue;
+
+                disconnectedClients.Add(pair.Key, pair.Value);
+            }
+            _connectedClients.Clear();
+
+            foreach (KeyValuePair<TcpClient, NewAvatar> pair in disconnectedClients)
+            {
+                _clientAvatars.Remove(pair.Key);
+            }
+
+            foreach (KeyValuePair<TcpClient, NewAvatar> remainingClient in _clientAvatars)
+            {
+                foreach (KeyValuePair<TcpClient, NewAvatar> disconnectedClient in disconnectedClients)
+                {
+                    _dataSender.SendAvatarRemove(remainingClient.Key, new DeadAvatar()
+                    {
+                        ID = disconnectedClient.Value.ID
+                    });
+                }
+            }
+
+            foreach (KeyValuePair<TcpClient, NewAvatar> pair in _clientAvatars)
+            {
+                Console.WriteLine($"Sent heartbeat to client {pair.Value.ID}");
+                _dataSender.SendHeartBeat(pair.Key, new HeartBeat());
+            }
+            _currentHeartbeat = 0;
+        }
+        _currentHeartbeat += 1;
     }
 
     private void processNewClients()
@@ -73,6 +114,7 @@ class TCPServer
             //After this, the server expects the AvatarContainer back but with a Position assigned (I made the choice to do position generation on the client side, because designers might choose to use some kind of tooling to determine where the avatar should spawn. Or, if in the future a decision is made to use NavMesh, it needs to happen on the client side anyway).
             //Then, all other clients will be notified of the new avatar including the random position.
             _dataSender.SendNewAvatar(client, newAvatar);
+            _connectedClients.Add(client);
         }
     }
 
@@ -101,53 +143,17 @@ class TCPServer
                     syncPositionsAcrossClients(incomingDataFromClient.Key, positionReq);
                     break;
                 case HeartBeat heartBeat:
-                    Console.WriteLine($"Added client: {heartBeat.ClientID} to connectedClients collection");
-                    _connectedClients.Add(incomingDataFromClient.Key);
+                    if (!_connectedClients.Contains(incomingDataFromClient.Key))
+                    {
+                        Console.WriteLine($"Added client: {heartBeat.ClientID} to connectedClients collection");
+                        _connectedClients.Add(incomingDataFromClient.Key);
+                    }
                     break;
                 case SkinUpdate skinUpdate:
                     syncSkinUpdateAcrossClients(incomingDataFromClient.Key, skinUpdate);
                     break;
             }
         }
-    }
-
-    private void checkFaultyClients()
-    {
-        //Console.WriteLine($"Current heartbeat: {_currentHeartbeat}. Connected clients: {_connectedClients.Count}");
-        if (_currentHeartbeat >= HEARTBEAT_INTERVAL)
-        {
-            //Send out heartbeat to each client
-            foreach (KeyValuePair<TcpClient, NewAvatar> pair in _clientAvatars)
-            {
-                Console.WriteLine($"Sent out heartbeat to client {pair.Value.ID}");
-                _dataSender.SendHeartBeat(pair.Key, new HeartBeat());
-            }
-
-            Dictionary<TcpClient, NewAvatar> disconnectedClients = new Dictionary<TcpClient, NewAvatar>();
-            //Loop over each client, check if the connectedClients dictionary contains the current client. If not, add it to the disconnectedClients dictionary.
-            foreach (KeyValuePair<TcpClient, NewAvatar> pair in _clientAvatars)
-            {
-                if (_connectedClients.Contains(pair.Key))
-                {
-                    Console.WriteLine($"Client {pair.Value.ID} is still connected.");
-                    continue;
-                }
-
-                Console.WriteLine($"Client {pair.Value.ID} has been disconnected.");
-                disconnectedClients.Add(pair.Key, pair.Value);
-            }
-
-            //For each client in disconnectedClients, remove it from clientAvatars and notify the clients to remove the avatar from the disconnected client
-            foreach (KeyValuePair<TcpClient, NewAvatar> pair in disconnectedClients)
-            {
-                _clientAvatars.Remove(pair.Key);
-                Console.WriteLine($"Removed client {pair.Value.ID}");
-            }
-
-            _connectedClients.Clear();
-            _currentHeartbeat = 0;
-        }
-        _currentHeartbeat += 1;
     }
 
     private void syncSkinUpdateAcrossClients(TcpClient pClient, SkinUpdate pCurrentData)
