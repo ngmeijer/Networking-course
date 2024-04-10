@@ -25,7 +25,6 @@ namespace server
             foreach (KeyValuePair<TcpClient, NewAvatar> receiver in pClientAvatars)
             {
                 _dataSender.SendMessage(receiver.Key, pMessage);
-                //If it is not a whisper message, send it to all avatars.
             }
         }
 
@@ -38,15 +37,6 @@ namespace server
             pMessageText = filteredMessage;
 
             return new SimpleMessage() { Text = pMessageText};
-        }
-
-        private bool isWhisperMessage(SimpleMessage pMessage)
-        {
-            string[] data = pMessage.Text.Split();
-            if (data[0] == "/whisper")
-                return true;
-
-            return false;
         }
 
         private bool isReceiverInRange(float pMaxDistance, Vector3 pAvatarSenderPosition, Vector3 pAvatarReceiverPosition)

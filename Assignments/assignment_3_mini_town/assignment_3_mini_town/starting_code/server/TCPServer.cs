@@ -108,9 +108,6 @@ class TCPServer
             _clientAvatars[client] = newAvatar;
 
             Console.WriteLine($"Accepted new client - {newAvatar.ID} -");
-            //Let the newly connected client know it should add an avatar.
-            //After this, the server expects the AvatarContainer back but with a Position assigned (I made the choice to do position generation on the client side, because designers might choose to use some kind of tooling to determine where the avatar should spawn. Or, if in the future a decision is made to use NavMesh, it needs to happen on the client side anyway).
-            //Then, all other clients will be notified of the new avatar including the random position.
             _dataSender.SendNewAvatar(client, newAvatar);
             _connectedClients.Add(client);
         }
@@ -158,6 +155,7 @@ class TCPServer
 
     private void syncSkinUpdateAcrossClients(TcpClient pClient, SkinUpdate pCurrentData)
     {
+        Console.WriteLine("Received new skin request. Updating clients.");
         int randomSkinID = randomNumberGenerator.Next(0, 100);
         while (randomSkinID == pCurrentData.SkinID)
         {
@@ -179,6 +177,7 @@ class TCPServer
 
     private void syncNewAvatarsAcrossClients(TcpClient pNewClient, NewAvatar pClientReturnedAvatar)
     {
+        Console.WriteLine("Registered new avatar. Distributing among clients.");
         //Update the position received from the client
         _clientAvatars.TryGetValue(pNewClient, out NewAvatar storedNewAvatar);
         storedNewAvatar.Position = pClientReturnedAvatar.Position;
@@ -216,6 +215,7 @@ class TCPServer
 
     private void syncPositionsAcrossClients(TcpClient pClient, PositionUpdate pPositionUpdate)
     {
+        Console.WriteLine($"Avatar {pPositionUpdate.ID} has moved to position {pPositionUpdate.Position}.");
         _clientAvatars[pClient].Position = pPositionUpdate.Position;
 
         foreach (KeyValuePair<TcpClient, NewAvatar> client in _clientAvatars)

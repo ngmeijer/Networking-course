@@ -15,6 +15,20 @@ namespace server
         {
         }
 
+        public void SendObject(TcpClient pClient, ISerializable pOutObject)
+        {
+            try
+            {
+                Packet outPacket = new Packet();
+                outPacket.Write(pOutObject);
+                StreamUtil.Write(pClient.GetStream(), outPacket.GetBytes());
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+        }
+
         public void SendNewAvatar(TcpClient pClient, NewAvatar pContainer)
         {
             SendObject(pClient, pContainer);
@@ -28,20 +42,6 @@ namespace server
         public void SendPositionUpdate(TcpClient pClient, PositionUpdate pObject)
         {
             SendObject(pClient, pObject);
-        }
-      
-        public void SendObject(TcpClient pClient, ISerializable pOutObject)
-        {
-            try
-            {
-                Packet outPacket = new Packet();
-                outPacket.Write(pOutObject);
-                StreamUtil.Write(pClient.GetStream(), outPacket.GetBytes());
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
         }
 
         public void SendHeartBeat(TcpClient pClient, HeartBeat pHeartBeat)

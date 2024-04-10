@@ -4,6 +4,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 public class IncomingDataHelper : MonoBehaviour
 {
@@ -51,9 +52,6 @@ public class IncomingDataHelper : MonoBehaviour
 
     private void handleExistingAvatars(ExistingAvatars pExistingAvatars)
     {
-        Debug.Log($"avatar id array null? {pExistingAvatars.Avatars == null}");
-        Debug.Log($"avatar id array length {pExistingAvatars.Avatars.Length}");
-
         foreach (NewAvatar avatar in pExistingAvatars.Avatars)
         {
             createNewAvatar(avatar.ID, avatar.SkinID, new Vector3(avatar.Position.x, avatar.Position.y, avatar.Position.z));
@@ -62,6 +60,7 @@ public class IncomingDataHelper : MonoBehaviour
 
     private void handleAvatarRemove(DeadAvatar pDeadAvatar)
     {
+        Console.WriteLine($"Client {pDeadAvatar.ID} has disconnected. Removing avatar.");
         AreaManager.RemoveAvatarView(pDeadAvatar.ID);
     }
 
@@ -77,11 +76,13 @@ public class IncomingDataHelper : MonoBehaviour
 
     private void handleSkinUpdate(SkinUpdate pIncomingObject)
     {
+        Debug.Log($"New skin {pIncomingObject.SkinID} for {pIncomingObject.ID}.");
         AreaManager.GetAvatarView(pIncomingObject.ID).SetSkin(pIncomingObject.SkinID);
     }
 
     private void handlePositionUpdate(PositionUpdate pIncomingObject)
     {
+        Debug.Log($"New position ({pIncomingObject.Position}) received for avatar {pIncomingObject.ID}");
         Vector3 newPosition = new Vector3(pIncomingObject.Position.x, pIncomingObject.Position.y, pIncomingObject.Position.z);
         AreaManager.GetAvatarView(pIncomingObject.ID).Move(newPosition);
     }
@@ -118,6 +119,7 @@ public class IncomingDataHelper : MonoBehaviour
 
     private void createNewAvatar(int pID, int pSkinID, Vector3 pPosition)
     {
+        Debug.Log($"New avatar created, ID {pID} at position {pPosition} with skin {pSkinID}");
         AvatarView avatarView = AreaManager.AddAvatarView(pID);
         avatarView.SetSkin(pSkinID);
         avatarView.transform.localPosition = new UnityEngine.Vector3(pPosition.x, pPosition.y, pPosition.z);
@@ -131,6 +133,7 @@ public class IncomingDataHelper : MonoBehaviour
 
     private void handleSimpleMessage(SimpleMessage pIncomingObject)
     {
+        Debug.Log($"Message received from avatar {pIncomingObject.SenderID}. Message: {pIncomingObject.Text}");
         AvatarView avatarView = AreaManager.GetAvatarView(pIncomingObject.SenderID);
         avatarView.Say(pIncomingObject.Text);
     }
