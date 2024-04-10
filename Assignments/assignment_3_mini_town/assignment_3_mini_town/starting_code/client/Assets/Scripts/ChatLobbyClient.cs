@@ -133,11 +133,4 @@ public class ChatLobbyClient : MonoBehaviour
             //connectToServer();
         }
     }
-
-    private void OnApplicationQuit()
-    {
-        _client.GetStream().Close();
-        _client.Close();
-        Debug.Log("closed client");
-    }
 }

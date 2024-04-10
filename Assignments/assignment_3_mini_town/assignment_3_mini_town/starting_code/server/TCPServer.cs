@@ -56,60 +56,74 @@ class TCPServer
 
     private void checkFaultyClients()
     {
-        if (_currentHeartbeat >= HEARTBEAT_INTERVAL)
+        try
         {
-            Dictionary<TcpClient, NewAvatar> disconnectedClients = new Dictionary<TcpClient, NewAvatar>();
-            foreach (KeyValuePair<TcpClient, NewAvatar> pair in _clientAvatars)
+            if (_currentHeartbeat >= HEARTBEAT_INTERVAL)
             {
-                if (_connectedClients.Contains(pair.Key))
-                    continue;
-
-                disconnectedClients.Add(pair.Key, pair.Value);
-            }
-            _connectedClients.Clear();
-
-            foreach (KeyValuePair<TcpClient, NewAvatar> pair in disconnectedClients)
-            {
-                _clientAvatars.Remove(pair.Key);
-            }
-
-            foreach (KeyValuePair<TcpClient, NewAvatar> remainingClient in _clientAvatars)
-            {
-                foreach (KeyValuePair<TcpClient, NewAvatar> disconnectedClient in disconnectedClients)
+                Dictionary<TcpClient, NewAvatar> disconnectedClients = new Dictionary<TcpClient, NewAvatar>();
+                foreach (KeyValuePair<TcpClient, NewAvatar> pair in _clientAvatars)
                 {
-                    _dataSender.SendAvatarRemove(remainingClient.Key, new DeadAvatar()
-                    {
-                        ID = disconnectedClient.Value.ID
-                    });
-                }
-            }
+                    if (_connectedClients.Contains(pair.Key))
+                        continue;
 
-            foreach (KeyValuePair<TcpClient, NewAvatar> pair in _clientAvatars)
-            {
-                _dataSender.SendHeartBeat(pair.Key, new HeartBeat());
+                    disconnectedClients.Add(pair.Key, pair.Value);
+                }
+                _connectedClients.Clear();
+
+                foreach (KeyValuePair<TcpClient, NewAvatar> pair in disconnectedClients)
+                {
+                    _clientAvatars.Remove(pair.Key);
+                }
+
+                foreach (KeyValuePair<TcpClient, NewAvatar> remainingClient in _clientAvatars)
+                {
+                    foreach (KeyValuePair<TcpClient, NewAvatar> disconnectedClient in disconnectedClients)
+                    {
+                        _dataSender.SendAvatarRemove(remainingClient.Key, new DeadAvatar()
+                        {
+                            ID = disconnectedClient.Value.ID
+                        });
+                    }
+                }
+
+                foreach (KeyValuePair<TcpClient, NewAvatar> pair in _clientAvatars)
+                {
+                    _dataSender.SendHeartBeat(pair.Key, new HeartBeat());
+                }
+                _currentHeartbeat = 0;
             }
-            _currentHeartbeat = 0;
+            _currentHeartbeat += 1;
         }
-        _currentHeartbeat += 1;
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
+        }
     }
 
     private void processNewClients()
     {
-        while (_listener.Pending())
+        try
         {
-            TcpClient client = _listener.AcceptTcpClient();
-            _clientAvatars.Add(client, null);
-            NewAvatar newAvatar = new NewAvatar()
+            while (_listener.Pending())
             {
-                ID = _clientAvatars.Count - 1,
-                SkinID = randomNumberGenerator.Next(0, 100),
-                Position = new Vector3().Zero(),
-            };
-            _clientAvatars[client] = newAvatar;
+                TcpClient client = _listener.AcceptTcpClient();
+                _clientAvatars.Add(client, null);
+                NewAvatar newAvatar = new NewAvatar()
+                {
+                    ID = _clientAvatars.Count - 1,
+                    SkinID = randomNumberGenerator.Next(0, 100),
+                    Position = new Vector3().Zero(),
+                };
+                _clientAvatars[client] = newAvatar;
 
-            Console.WriteLine($"Accepted new client - {newAvatar.ID} -");
-            _dataSender.SendNewAvatar(client, newAvatar);
-            _connectedClients.Add(client);
+                Console.WriteLine($"Accepted new client - {newAvatar.ID} -");
+                _dataSender.SendNewAvatar(client, newAvatar);
+                _connectedClients.Add(client);
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.ToString());
         }
     }
 
@@ -120,36 +134,42 @@ class TCPServer
         {
             if (incomingDataFromClient.Key.Available == 0)
                 continue;
-
-            ISerializable inObject = readIncomingData(incomingDataFromClient.Key);
-            Console.WriteLine($"Received object type: {inObject}");
-            switch (inObject)
+            try
             {
-                //Distribute avatar reps (only happens when a new client joins) to all clients
-                case NewAvatar avatar:
-                    syncNewAvatarsAcrossClients(incomingDataFromClient.Key, avatar);
-                    break;
-                //Distribute messages to all clients
-                case SimpleMessage message:
-                    _dataProcessor.SyncMessagesAcrossClients(incomingDataFromClient.Key, message, _clientAvatars);
-                    break;
-                case WhisperMessage message:
-                    _dataProcessor.SyncWhisperMessagesAcrossClients(incomingDataFromClient.Key, message, _clientAvatars);
-                    break;
-                //Distribute position update to all clients.
-                case PositionUpdate positionReq:
-                    syncPositionsAcrossClients(incomingDataFromClient.Key, positionReq);
-                    break;
-                case HeartBeat heartBeat:
-                    Console.WriteLine("Registered new avatar. Distributing among clients.");
-                    if (!_connectedClients.Contains(incomingDataFromClient.Key))
-                    {
-                        _connectedClients.Add(incomingDataFromClient.Key);
-                    }
-                    break;
-                case SkinUpdate skinUpdate:
-                    syncSkinUpdateAcrossClients(incomingDataFromClient.Key, skinUpdate);
-                    break;
+                ISerializable inObject = readIncomingData(incomingDataFromClient.Key);
+                Console.WriteLine($"Received object type: {inObject}");
+                switch (inObject)
+                {
+                    //Distribute avatar reps (only happens when a new client joins) to all clients
+                    case NewAvatar avatar:
+                        syncNewAvatarsAcrossClients(incomingDataFromClient.Key, avatar);
+                        break;
+                    //Distribute messages to all clients
+                    case SimpleMessage message:
+                        _dataProcessor.SyncMessagesAcrossClients(incomingDataFromClient.Key, message, _clientAvatars);
+                        break;
+                    case WhisperMessage message:
+                        _dataProcessor.SyncWhisperMessagesAcrossClients(incomingDataFromClient.Key, message, _clientAvatars);
+                        break;
+                    //Distribute position update to all clients.
+                    case PositionUpdate positionReq:
+                        syncPositionsAcrossClients(incomingDataFromClient.Key, positionReq);
+                        break;
+                    case HeartBeat heartBeat:
+                        Console.WriteLine("Registered new avatar. Distributing among clients.");
+                        if (!_connectedClients.Contains(incomingDataFromClient.Key))
+                        {
+                            _connectedClients.Add(incomingDataFromClient.Key);
+                        }
+                        break;
+                    case SkinUpdate skinUpdate:
+                        syncSkinUpdateAcrossClients(incomingDataFromClient.Key, skinUpdate);
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
             }
         }
     }
