@@ -6585,6 +6585,8 @@ GameObject:
   - component: {fileID: 1086429066}
   - component: {fileID: 1086429065}
   - component: {fileID: 1086429067}
+  - component: {fileID: 1086429068}
+  - component: {fileID: 1086429069}
   m_Layer: 0
   m_Name: ChatLobbyClient
   m_TagString: Untagged
@@ -6606,9 +6608,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _server: localhost
   _port: 55555
-  spawnRange: 13
-  spawnMinAngle: 0
-  spawnMaxAngle: 180
 --- !u!4 &1086429066
 Transform:
   m_ObjectHideFlags: 0
@@ -6639,6 +6638,37 @@ MonoBehaviour:
   noteText: This is the main object you should be working in. Implement your server,
     add the right protocol objects and go create some magic!
   noteType: 1
+--- !u!114 &1086429068
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1086429064}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 567be8465cdf49c4db548aaff478d535, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _areaManager: {fileID: 0}
+  OwnID: 0
+  spawnRange: 13
+  spawnMinAngle: 0
+  spawnMaxAngle: 180
+--- !u!114 &1086429069
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1086429064}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d09ad1c76a2374f438175e4fbfeee542, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _areaManager: {fileID: 0}
+  OwnID: 0
 --- !u!1 &1093717653
 GameObject:
   m_ObjectHideFlags: 0

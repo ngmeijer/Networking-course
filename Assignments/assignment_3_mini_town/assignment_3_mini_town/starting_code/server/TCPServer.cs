@@ -61,6 +61,7 @@ class TCPServer
             {
                 ID = _clientAvatars.Count - 1,
                 SkinID = randomNumberGenerator.Next(0, 100),
+                Position = new Vector3().Zero(),
             };
             _clientAvatars[client] = newAvatar;
 
@@ -132,15 +133,15 @@ class TCPServer
 
         if (_clientAvatars.Count > 1)
         {
-            //Send all avatars to new client
             ExistingAvatars existingAvatarsContainer = new ExistingAvatars()
             {
                 AvatarCount = _clientAvatars.Count,
                 Avatars = new NewAvatar[_clientAvatars.Count]
             };
 
+            //Update new client
             NewAvatar[] avatarArray = _clientAvatars.Values.ToArray();
-            for(int i = 0; i < _clientAvatars.Count; i++)
+            for (int i = 0; i < _clientAvatars.Count; i++)
             {
                 NewAvatar currentAvatar = avatarArray[i];
                 existingAvatarsContainer.Avatars[i] = new NewAvatar()
@@ -150,20 +151,15 @@ class TCPServer
                     Position = currentAvatar.Position,
                 };
             }
-            
-            //for(int i = 0; i < tempAvatars.Length; i++)
-            //{
-            //    existingAvatarsContainer.AvatarIDs[i] = tempAvatars[i].ID;
-            //}
-
             _requestHandler.SendExistingClients(pNewClient, existingAvatarsContainer);
-        }
 
-        ////Update existing clients about new avatar.
-        //foreach(KeyValuePair<TcpClient, NewAvatar> pair in _clientAvatars)
-        //{
-        //    _requestHandler.SendNewAvatar(pair.Key, storedNewAvatar);
-        //}
+            //Update existing clients.
+            TcpClient[] clientArray = _clientAvatars.Keys.ToArray();
+            for (int i = 0; i < clientArray.Length; i++)
+            {
+                _requestHandler.SendNewAvatar(clientArray[i], storedNewAvatar);
+            }
+        }
     }
 
     private void syncPositionsAcrossClients(TcpClient pClient, PositionUpdate pPositionUpdate)

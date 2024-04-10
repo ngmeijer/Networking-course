@@ -61,7 +61,7 @@ namespace shared
         public bool ReadBool() { return reader.ReadBoolean(); }
         public Vector3 ReadVector3()
         {
-            Vector3 vec = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
+            Vector3 vec = new Vector3(ReadFloat(), ReadFloat(), ReadFloat());
             return vec;
         }
 

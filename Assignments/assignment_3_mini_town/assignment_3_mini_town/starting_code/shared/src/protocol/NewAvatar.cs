@@ -7,7 +7,7 @@ namespace shared
     {
         public int ID;
         public int SkinID;
-        public Vector3 Position = new Vector3 (0, 0, 0);
+        public Vector3 Position;
 
         public void Serialize(Packet pPacket)
         {
@@ -20,7 +20,7 @@ namespace shared
         {
             ID = pPacket.ReadInt();
             SkinID = pPacket.ReadInt();
-            pPacket.ReadVector3();
+            Position = pPacket.ReadVector3();
         }
     }
 }

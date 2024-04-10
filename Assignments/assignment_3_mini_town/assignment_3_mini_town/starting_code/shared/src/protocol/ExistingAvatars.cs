@@ -22,7 +22,6 @@ namespace shared.src.protocol
 
                 Avatars[avatarIndex] = newAvatar;
 
-                Console.WriteLine($"Writing ID {Avatars[avatarIndex].ID} to packet");
                 pPacket.Write(Avatars[avatarIndex].ID);
                 pPacket.Write(Avatars[avatarIndex].SkinID);
                 pPacket.Write(Avatars[avatarIndex].Position);

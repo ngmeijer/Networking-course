@@ -20,6 +20,14 @@ namespace shared.src
             z = pZ;
         }
 
+        public Vector3 Zero()
+        {
+            x = 0;
+            y = 0;
+            z = 0;
+            return this;
+        }
+
         public override string ToString()
         {
             return $"{x}, {y}, {z}";

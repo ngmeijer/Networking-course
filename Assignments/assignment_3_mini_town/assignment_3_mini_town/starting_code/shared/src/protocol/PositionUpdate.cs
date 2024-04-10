@@ -16,7 +16,7 @@ namespace shared
         public void Deserialize(Packet pPacket)
         {
             ID = pPacket.ReadInt();
-            Position = new Vector3();
+            Position = pPacket.ReadVector3();
         }
     }
 }
