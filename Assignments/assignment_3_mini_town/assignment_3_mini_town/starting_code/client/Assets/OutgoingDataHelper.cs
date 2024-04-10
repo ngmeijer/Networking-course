@@ -45,4 +45,15 @@ public class OutgoingDataHelper : MonoBehaviour
             //connectToServer();
         }
     }
+
+    public void SendSkinUpdate()
+    {
+        SkinUpdate skinUpdate = new SkinUpdate()
+        {
+            ID = OwnID,
+            SkinID = -1
+        };
+
+        sendObject(skinUpdate);
+    }
 }

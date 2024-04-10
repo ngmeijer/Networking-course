@@ -6650,7 +6650,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 567be8465cdf49c4db548aaff478d535, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _areaManager: {fileID: 0}
+  AreaManager: {fileID: 0}
   OwnID: 0
   spawnRange: 13
   spawnMinAngle: 0
@@ -6667,7 +6667,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d09ad1c76a2374f438175e4fbfeee542, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _areaManager: {fileID: 0}
+  AreaManager: {fileID: 0}
   OwnID: 0
 --- !u!1 &1093717653
 GameObject:

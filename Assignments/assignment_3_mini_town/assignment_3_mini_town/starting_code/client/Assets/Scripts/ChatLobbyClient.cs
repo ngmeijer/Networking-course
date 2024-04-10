@@ -84,7 +84,11 @@ public class ChatLobbyClient : MonoBehaviour
     private void onChatTextEntered(string pText)
     {
         _panelWrapper.ClearInput();
-        _outgoingDataHelper.SendNewMessage(pText);
+
+        if (pText == "/setskin")
+            _outgoingDataHelper.SendSkinUpdate();
+        else
+            _outgoingDataHelper.SendNewMessage(pText);
     }
 
     private void onClosedConnection()

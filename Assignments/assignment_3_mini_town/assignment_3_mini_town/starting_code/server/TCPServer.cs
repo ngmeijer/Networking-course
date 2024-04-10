@@ -20,10 +20,12 @@ using shared.src;
 class TCPServer
 {
     private Random randomNumberGenerator = new Random();
-    private RequestHandler _requestHandler = new RequestHandler();
+    private DataSender _dataSender = new DataSender();
     private List<TcpClient> _connectedClients = new List<TcpClient>();
+    private DataProcessor _dataProcessor;
 
-    private const float HEARTBEAT_INTERVAL = 2f;
+    private const float HEARTBEAT_INTERVAL = 1f;
+    private float _currentHeartbeat;
 
     public static void Main(string[] args)
     {
@@ -38,13 +40,14 @@ class TCPServer
     {
         Console.WriteLine("Server started on port 55555");
 
+        _dataProcessor = new DataProcessor(_dataSender);
         _listener = new TcpListener(IPAddress.Any, 55555);
         _listener.Start();
 
         while (true)
         {
-            //checkFaultyClients();
             processNewClients();
+            //checkFaultyClients();
             processExistingClients();
 
             Thread.Sleep(100);
@@ -69,7 +72,7 @@ class TCPServer
             //Let the newly connected client know it should add an avatar.
             //After this, the server expects the AvatarContainer back but with a Position assigned (I made the choice to do position generation on the client side, because designers might choose to use some kind of tooling to determine where the avatar should spawn. Or, if in the future a decision is made to use NavMesh, it needs to happen on the client side anyway).
             //Then, all other clients will be notified of the new avatar including the random position.
-            _requestHandler.SendNewAvatar(client, newAvatar);
+            _dataSender.SendNewAvatar(client, newAvatar);
         }
     }
 
@@ -91,14 +94,18 @@ class TCPServer
                     break;
                 //Distribute messages to all clients
                 case SimpleMessage message:
-                    syncMessagesAcrossClients(incomingDataFromClient.Key, message);
+                    _dataProcessor.SyncMessagesAcrossClients(incomingDataFromClient.Key, message, _clientAvatars);
                     break;
                 //Distribute position update to all clients.
                 case PositionUpdate positionReq:
                     syncPositionsAcrossClients(incomingDataFromClient.Key, positionReq);
                     break;
                 case HeartBeat heartBeat:
+                    Console.WriteLine($"Added client: {heartBeat.ClientID} to connectedClients collection");
                     _connectedClients.Add(incomingDataFromClient.Key);
+                    break;
+                case SkinUpdate skinUpdate:
+                    syncSkinUpdateAcrossClients(incomingDataFromClient.Key, skinUpdate);
                     break;
             }
         }
@@ -106,22 +113,61 @@ class TCPServer
 
     private void checkFaultyClients()
     {
-        _connectedClients.Clear();
-
-        Dictionary<TcpClient, NewAvatar> disconnectedClients = new Dictionary<TcpClient, NewAvatar>();
-        foreach (KeyValuePair<TcpClient, NewAvatar> heartbeatCheck in _clientAvatars)
+        //Console.WriteLine($"Current heartbeat: {_currentHeartbeat}. Connected clients: {_connectedClients.Count}");
+        if (_currentHeartbeat >= HEARTBEAT_INTERVAL)
         {
-            _requestHandler.SendHeartBeat(heartbeatCheck.Key, new HeartBeat() { ClientID = heartbeatCheck.Value.ID });
+            //Send out heartbeat to each client
+            foreach (KeyValuePair<TcpClient, NewAvatar> pair in _clientAvatars)
+            {
+                Console.WriteLine($"Sent out heartbeat to client {pair.Value.ID}");
+                _dataSender.SendHeartBeat(pair.Key, new HeartBeat());
+            }
+
+            Dictionary<TcpClient, NewAvatar> disconnectedClients = new Dictionary<TcpClient, NewAvatar>();
+            //Loop over each client, check if the connectedClients dictionary contains the current client. If not, add it to the disconnectedClients dictionary.
+            foreach (KeyValuePair<TcpClient, NewAvatar> pair in _clientAvatars)
+            {
+                if (_connectedClients.Contains(pair.Key))
+                {
+                    Console.WriteLine($"Client {pair.Value.ID} is still connected.");
+                    continue;
+                }
+
+                Console.WriteLine($"Client {pair.Value.ID} has been disconnected.");
+                disconnectedClients.Add(pair.Key, pair.Value);
+            }
+
+            //For each client in disconnectedClients, remove it from clientAvatars and notify the clients to remove the avatar from the disconnected client
+            foreach (KeyValuePair<TcpClient, NewAvatar> pair in disconnectedClients)
+            {
+                _clientAvatars.Remove(pair.Key);
+                Console.WriteLine($"Removed client {pair.Value.ID}");
+            }
+
+            _connectedClients.Clear();
+            _currentHeartbeat = 0;
+        }
+        _currentHeartbeat += 1;
+    }
+
+    private void syncSkinUpdateAcrossClients(TcpClient pClient, SkinUpdate pCurrentData)
+    {
+        int randomSkinID = randomNumberGenerator.Next(0, 100);
+        while (randomSkinID == pCurrentData.SkinID)
+        {
+            randomSkinID = randomNumberGenerator.Next(0, 100);
         }
 
-        foreach (KeyValuePair<TcpClient, NewAvatar> disconnectedClient in disconnectedClients)
-        {
-            _clientAvatars.Remove(disconnectedClient.Key);
-        }
+        _clientAvatars.TryGetValue(pClient, out NewAvatar avatar);
+        avatar.SkinID = randomSkinID;
 
-        foreach (KeyValuePair<TcpClient, NewAvatar> heartbeatCheck in _clientAvatars)
+        foreach (KeyValuePair<TcpClient, NewAvatar> pair in _clientAvatars)
         {
-            _requestHandler.SendAvatarRemove(heartbeatCheck.Key, new DeadAvatar() { ID = heartbeatCheck.Value.ID });
+            _dataSender.SendSkinUpdate(pair.Key, new SkinUpdate()
+            {
+                ID = pair.Value.ID,
+                SkinID = randomSkinID
+            });
         }
     }
 
@@ -151,13 +197,13 @@ class TCPServer
                     Position = currentAvatar.Position,
                 };
             }
-            _requestHandler.SendExistingClients(pNewClient, existingAvatarsContainer);
+            _dataSender.SendExistingClients(pNewClient, existingAvatarsContainer);
 
             //Update existing clients.
             TcpClient[] clientArray = _clientAvatars.Keys.ToArray();
             for (int i = 0; i < clientArray.Length; i++)
             {
-                _requestHandler.SendNewAvatar(clientArray[i], storedNewAvatar);
+                _dataSender.SendNewAvatar(clientArray[i], storedNewAvatar);
             }
         }
     }
@@ -169,64 +215,8 @@ class TCPServer
         foreach (KeyValuePair<TcpClient, NewAvatar> client in _clientAvatars)
         {
             Console.WriteLine($"Moving avatar {pPositionUpdate.ID} for client {client.Value.ID} to position ({pPositionUpdate.Position.ToString()})");
-            _requestHandler.SendPositionUpdate(client.Key, pPositionUpdate);
+            _dataSender.SendPositionUpdate(client.Key, pPositionUpdate);
         }
-    }
-
-    private void syncMessagesAcrossClients(TcpClient pSender, SimpleMessage pMessage)
-    {
-        foreach (KeyValuePair<TcpClient, NewAvatar> receiver in _clientAvatars)
-        {
-            //If it is not a whisper message, send it to all avatars.
-            if (!isWhisperMessage(pMessage))
-            {
-                _requestHandler.SendMessage(receiver.Key, pMessage);
-                continue;
-            }
-
-            //Take out the /whisper command
-            pMessage = filterMessage(pMessage);
-
-            //
-            if (receiver.Key != pSender && isReceiverInRange(2, pMessage.Position, receiver.Value.Position))
-            {
-                _requestHandler.SendMessage(receiver.Key, pMessage);
-            }
-        }
-    }
-
-    private SimpleMessage filterMessage(SimpleMessage pMessage)
-    {
-        string text = pMessage.Text;
-        string command = "/whisper";
-        int index = text.IndexOf(command);
-        string filteredMessage = pMessage.Text.Substring(index + command.Length).Trim();
-        pMessage.Text = filteredMessage;
-
-        return pMessage;
-    }
-
-    private bool isWhisperMessage(SimpleMessage pMessage)
-    {
-        string[] data = pMessage.Text.Split();
-        if (data[0] == "/whisper")
-            return true;
-
-        return false;
-    }
-
-    private bool isReceiverInRange(float pMaxDistance, Vector3 pAvatarSenderPosition, Vector3 pAvatarReceiverPosition)
-    {
-        double xDifference = pAvatarSenderPosition.x - pAvatarReceiverPosition.x;
-        double yDifference = pAvatarSenderPosition.y - pAvatarReceiverPosition.y;
-        double zDifference = pAvatarSenderPosition.z - pAvatarReceiverPosition.z;
-
-        double distance = Math.Sqrt(Math.Pow(xDifference, 2) + Math.Pow(yDifference, 2) + Math.Pow(zDifference, 2));
-        Console.WriteLine($"Distance: {distance}");
-        if (distance <= pMaxDistance)
-            return true;
-
-        return false;
     }
 
     private ISerializable readIncomingData(TcpClient pSender)

@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
+using System;
 
 /**
  * The AvatarView class is a wrapper around both a skin and speechbubble with a couple of simple methods:
@@ -29,6 +30,7 @@ public class AvatarView : MonoBehaviour
 
     private SpeechBubble _speechBubble; //reference to the speech bubble so we can say stuff
     private Animator _animator = null;  //if present a reference to the animator so we can check if we are walking
+    [SerializeField] private GameObject _characterRing;
 
     private void Awake()
     {
@@ -114,4 +116,8 @@ public class AvatarView : MonoBehaviour
         _animator.speed = _moving ? 60 * moveSpeed : 1;
     }
 
+    public void ShowRing()
+    {
+        _characterRing.SetActive(true);
+    }
 }

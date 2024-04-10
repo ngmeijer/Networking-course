@@ -9,9 +9,9 @@ using System.Threading.Tasks;
 
 namespace server
 {
-    public class RequestHandler
+    public class DataSender
     {
-        public RequestHandler()
+        public DataSender()
         {
         }
 
@@ -55,6 +55,11 @@ namespace server
         }
 
         public void SendExistingClients(TcpClient pClient, ExistingAvatars pObject)
+        {
+            SendObject(pClient, pObject);
+        }
+
+        public void SendSkinUpdate(TcpClient pClient, SkinUpdate pObject)
         {
             SendObject(pClient, pObject);
         }

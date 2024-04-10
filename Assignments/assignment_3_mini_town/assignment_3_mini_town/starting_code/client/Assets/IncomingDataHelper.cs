@@ -34,8 +34,8 @@ public class IncomingDataHelper : MonoBehaviour
             case PositionUpdate positionUpdate:
                 handlePositionUpdate(positionUpdate);
                 break;
-            case SkinRequest skinRequest:
-                handleSkinRequest(skinRequest);
+            case SkinUpdate skinUpdate:
+                handleSkinUpdate(skinUpdate);
                 break;
             case HeartBeat heartBeat:
                 handleHeartBeatUpdate();
@@ -56,7 +56,7 @@ public class IncomingDataHelper : MonoBehaviour
 
         foreach (NewAvatar avatar in pExistingAvatars.Avatars)
         {
-            createNewAvatar(avatar.ID, avatar.SkinID, avatar.Position);
+            createNewAvatar(avatar.ID, avatar.SkinID, new Vector3(avatar.Position.x, avatar.Position.y, avatar.Position.z));
         }
     }
 
@@ -75,7 +75,7 @@ public class IncomingDataHelper : MonoBehaviour
         OnDataGoingOut(heartBeat);
     }
 
-    private void handleSkinRequest(SkinRequest pIncomingObject)
+    private void handleSkinUpdate(SkinUpdate pIncomingObject)
     {
         AreaManager.GetAvatarView(pIncomingObject.ID).SetSkin(pIncomingObject.SkinID);
     }
@@ -116,20 +116,17 @@ public class IncomingDataHelper : MonoBehaviour
         }
     }
 
-    private void createNewAvatar(int pID, int pSkinID, shared.src.Vector3 pPosition)
-    {
-        AvatarView avatarView = AreaManager.AddAvatarView(pID);
-        avatarView.SetSkin(pSkinID);
-        avatarView.transform.localPosition = new UnityEngine.Vector3(pPosition.x, pPosition.y, pPosition.z);
-    }
-
     private void createNewAvatar(int pID, int pSkinID, Vector3 pPosition)
     {
-        Debug.Log($"AreaManager null?: {AreaManager == null}");
         AvatarView avatarView = AreaManager.AddAvatarView(pID);
-        Debug.Log($"Generated avatar null?: {avatarView == null}");
         avatarView.SetSkin(pSkinID);
         avatarView.transform.localPosition = new UnityEngine.Vector3(pPosition.x, pPosition.y, pPosition.z);
+
+        if (pID == OwnID)
+        {
+            Debug.Log($"Enabled ring for avatar {pID}");
+            avatarView.ShowRing();
+        }
     }
 
     private void handleSimpleMessage(SimpleMessage pIncomingObject)
