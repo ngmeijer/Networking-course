@@ -87,8 +87,9 @@ public class ChatLobbyClient : MonoBehaviour
 
         if (pText == "/setskin")
             _outgoingDataHelper.SendSkinUpdate();
-        else
-            _outgoingDataHelper.SendNewMessage(pText);
+        else if (pText.StartsWith("/whisper"))
+            _outgoingDataHelper.SendWhisperMessage(pText);
+        else _outgoingDataHelper.SendNewMessage(pText);
     }
 
     private void onClosedConnection()

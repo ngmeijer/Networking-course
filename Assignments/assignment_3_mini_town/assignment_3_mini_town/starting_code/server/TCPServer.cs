@@ -58,7 +58,6 @@ class TCPServer
     {
         if (_currentHeartbeat >= HEARTBEAT_INTERVAL)
         {
-            Console.WriteLine($"Checking faulty clients... connected clients: {_connectedClients.Count}");
             Dictionary<TcpClient, NewAvatar> disconnectedClients = new Dictionary<TcpClient, NewAvatar>();
             foreach (KeyValuePair<TcpClient, NewAvatar> pair in _clientAvatars)
             {
@@ -87,7 +86,6 @@ class TCPServer
 
             foreach (KeyValuePair<TcpClient, NewAvatar> pair in _clientAvatars)
             {
-                Console.WriteLine($"Sent heartbeat to client {pair.Value.ID}");
                 _dataSender.SendHeartBeat(pair.Key, new HeartBeat());
             }
             _currentHeartbeat = 0;
@@ -138,6 +136,9 @@ class TCPServer
                 case SimpleMessage message:
                     _dataProcessor.SyncMessagesAcrossClients(incomingDataFromClient.Key, message, _clientAvatars);
                     break;
+                case WhisperMessage message:
+                    _dataProcessor.SyncWhisperMessagesAcrossClients(incomingDataFromClient.Key, message, _clientAvatars);
+                    break;
                 //Distribute position update to all clients.
                 case PositionUpdate positionReq:
                     syncPositionsAcrossClients(incomingDataFromClient.Key, positionReq);
@@ -145,7 +146,6 @@ class TCPServer
                 case HeartBeat heartBeat:
                     if (!_connectedClients.Contains(incomingDataFromClient.Key))
                     {
-                        Console.WriteLine($"Added client: {heartBeat.ClientID} to connectedClients collection");
                         _connectedClients.Add(incomingDataFromClient.Key);
                     }
                     break;

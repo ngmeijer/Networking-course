@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace shared.src
 {
     [Serializable]
-    public class Vector3
+    public struct Vector3
     {
         public float x;
         public float y;
@@ -26,6 +26,15 @@ namespace shared.src
             y = 0;
             z = 0;
             return this;
+        }
+
+        public double Distance(Vector3 pTargetVec)
+        {
+            float diffX = x - pTargetVec.x;
+            float diffY = y - pTargetVec.y;
+            float diffZ = z - pTargetVec.z;
+
+            return Math.Sqrt(Math.Pow(diffX, 2) + Math.Pow(diffY, 2) + Math.Pow(diffZ, 2));
         }
 
         public override string ToString()

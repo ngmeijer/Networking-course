@@ -1,4 +1,6 @@
 using shared;
+using shared.src;
+using shared.src.protocol;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -29,12 +31,30 @@ public class OutgoingDataHelper : MonoBehaviour
     {
         try
         {
-            Vector3 currentPosition = AreaManager.GetAvatarView(OwnID).transform.localPosition;
             SimpleMessage message = new SimpleMessage()
             {
                 SenderID = OwnID,
                 Text = pOutString,
-                Position = new shared.src.Vector3(currentPosition.x, currentPosition.y, currentPosition.z)
+            };
+            sendObject(message);
+        }
+        catch (Exception e)
+        {
+            Debug.Log(e.Message);
+            //_client.Close();
+            //connectToServer();
+        }
+    }
+    public void SendWhisperMessage(string pOutString)
+    {
+        try
+        {
+            UnityEngine.Vector3 position = AreaManager.GetAvatarView(OwnID).transform.localPosition;
+            WhisperMessage message = new WhisperMessage()
+            {
+                SenderID = OwnID,
+                Text = pOutString,
+                Position = new shared.src.Vector3(position.x, position.y, position.z)
             };
             sendObject(message);
         }
