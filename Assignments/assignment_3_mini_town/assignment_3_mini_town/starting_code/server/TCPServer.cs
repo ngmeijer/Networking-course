@@ -141,6 +141,7 @@ class TCPServer
                     syncPositionsAcrossClients(incomingDataFromClient.Key, positionReq);
                     break;
                 case HeartBeat heartBeat:
+                    Console.WriteLine("Registered new avatar. Distributing among clients.");
                     if (!_connectedClients.Contains(incomingDataFromClient.Key))
                     {
                         _connectedClients.Add(incomingDataFromClient.Key);
