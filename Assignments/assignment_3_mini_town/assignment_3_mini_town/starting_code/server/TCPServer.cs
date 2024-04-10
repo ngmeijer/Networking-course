@@ -171,7 +171,7 @@ class TCPServer
         {
             _dataSender.SendSkinUpdate(pair.Key, new SkinUpdate()
             {
-                ID = pair.Value.ID,
+                ID = avatar.ID,
                 SkinID = randomSkinID
             });
         }
