@@ -20,11 +20,12 @@ namespace server
 		protected TCPGameServer _server { private set; get; }
 		//all members of this room (we identify them by their message channel)
 		private List<TcpMessageChannel> _members;
+        private Dictionary<TcpMessageChannel, string> _memberNames = new Dictionary<TcpMessageChannel, string>();
 
-		/**
+        /**
 		 * Create a room with an empty member list and reference to the server instance they are a part of.
 		 */
-		protected Room (TCPGameServer pServer)
+        protected Room (TCPGameServer pServer)
 		{
 			_server = pServer;
 			_members = new List<TcpMessageChannel>();
@@ -36,7 +37,16 @@ namespace server
 			_members.Add(pMember);
 		}
 
-		protected virtual void removeMember(TcpMessageChannel pMember)
+		protected virtual void addMember(TcpMessageChannel pMember, string pNewMemberName)
+		{
+            Log.LogInfo($"Client {pNewMemberName} joined.", this);
+			_members.Add(pMember);
+			_memberNames.Add(pMember, pNewMemberName);
+        }
+
+        public bool HasMember(string pNewMemberName) => _memberNames.ContainsValue(pNewMemberName);
+
+        protected virtual void removeMember(TcpMessageChannel pMember)
 		{
 			Log.LogInfo("Client left.", this);
 			_members.Remove(pMember);
@@ -138,6 +148,22 @@ namespace server
 			}
 		}
 
-	}
+        protected void handleChatMessage(ChatMessage pChatMessage, TcpMessageChannel pSender)
+        {
+            ChatMessage newMessage = new ChatMessage();
+            newMessage.message = $"You: {pChatMessage.message}";
+            pSender.SendMessage(newMessage);
+            _memberNames.TryGetValue(pSender, out string senderName);
+
+            foreach (TcpMessageChannel client in _members)
+            {
+				if (client == pSender)
+					continue;
+
+                newMessage.message = $"{senderName}: {pChatMessage.message}";
+                client.SendMessage(newMessage);
+            }
+        }
+    }
 }
 
