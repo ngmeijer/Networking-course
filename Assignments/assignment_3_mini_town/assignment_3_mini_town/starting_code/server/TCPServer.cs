@@ -156,7 +156,6 @@ class TCPServer
                         syncPositionsAcrossClients(incomingDataFromClient.Key, positionReq);
                         break;
                     case HeartBeat heartBeat:
-                        Console.WriteLine("Registered new avatar. Distributing among clients.");
                         if (!_connectedClients.Contains(incomingDataFromClient.Key))
                         {
                             _connectedClients.Add(incomingDataFromClient.Key);
@@ -230,7 +229,7 @@ class TCPServer
             newClientPacket.Write(existingAvatarsContainer);
             _dataSender.SendPacket(pNewClient, newClientPacket);
 
-            //Update existing clients. X amount of very small packets with just the new client. Prevents unnecessary data sending (like if there are 1000 clients connected that will be a lot of data if we send 1 packet (with allll the avatars) rather than just the one that is necessary.
+            //Update existing clients. X amount of very small packets with just the new client. Prevents unnecessary data sending (like if there are 1000 clients connected that will be a lot of data if we send 1 packet to all clients (with allll the avatars) rather than just the one avatar that is necessary.
             TcpClient[] clientArray = _clientAvatars.Keys.ToArray();
             Packet existingClientsPacket = new Packet();
             existingClientsPacket.Write(storedNewAvatar);

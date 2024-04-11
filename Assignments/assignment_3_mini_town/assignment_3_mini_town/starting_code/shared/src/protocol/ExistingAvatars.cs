@@ -10,7 +10,7 @@ namespace shared.src.protocol
     public class ExistingAvatars : ISerializable
     {
         public int AvatarCount;
-        public NewAvatar[] Avatars = new NewAvatar[2];
+        public NewAvatar[] Avatars;
 
         public void Serialize(Packet pPacket)
         {
