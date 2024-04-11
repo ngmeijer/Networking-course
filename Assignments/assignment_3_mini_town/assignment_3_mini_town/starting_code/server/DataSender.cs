@@ -29,6 +29,18 @@ namespace server
             }
         }
 
+        public void SendPacket(TcpClient pClient, Packet pPacket)
+        {
+            try
+            {
+                StreamUtil.Write(pClient.GetStream(), pPacket.GetBytes());
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+        }
+
         public void SendNewAvatar(TcpClient pClient, NewAvatar pContainer)
         {
             SendObject(pClient, pContainer);
@@ -54,9 +66,21 @@ namespace server
             SendObject(pClient, pDeadAvatar);
         }
 
-        public void SendExistingClients(TcpClient pClient, ExistingAvatars pObject)
+        public void SendExistingClients(TcpClient[] pClients, ExistingAvatars pObject)
         {
-            SendObject(pClient, pObject);
+            Packet outPacket = new Packet();
+            outPacket.Write(pObject);
+            for (int i = 0; i < pClients.Length; i++)
+            {
+                try
+                {
+                    StreamUtil.Write(pClients[i].GetStream(), outPacket.GetBytes());
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.Message);
+                }
+            }
         }
 
         public void SendSkinUpdate(TcpClient pClient, SkinUpdate pObject)

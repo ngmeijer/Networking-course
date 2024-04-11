@@ -223,13 +223,23 @@ class TCPServer
                     Position = currentAvatar.Position,
                 };
             }
-            _dataSender.SendExistingClients(pNewClient, existingAvatarsContainer);
 
-            //Update existing clients.
+            //bit different approach here than what the requirements say:
+            //1 large packet for the new client (with all the avatars including its own
+            Packet newClientPacket = new Packet();
+            newClientPacket.Write(existingAvatarsContainer);
+            _dataSender.SendPacket(pNewClient, newClientPacket);
+
+            //Update existing clients. X amount of very small packets with just the new client. Prevents unnecessary data sending (like if there are 1000 clients connected that will be a lot of data if we send 1 packet (with allll the avatars) rather than just the one that is necessary.
             TcpClient[] clientArray = _clientAvatars.Keys.ToArray();
+            Packet existingClientsPacket = new Packet();
+            existingClientsPacket.Write(storedNewAvatar);
             for (int i = 0; i < clientArray.Length; i++)
             {
-                _dataSender.SendNewAvatar(clientArray[i], storedNewAvatar);
+                if (clientArray[i] == pNewClient)
+                    continue;
+
+                _dataSender.SendPacket(clientArray[i], existingClientsPacket);
             }
         }
     }
