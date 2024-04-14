@@ -14,6 +14,7 @@ public class LobbyState : ApplicationStateWithView<LobbyView>
         base.EnterState();
 
         view.SetLobbyHeading("Welcome to the Lobby...");
+        view.SetPlayerNameText($"Player '{fsm.channel.Name}'");
         view.ClearOutput();
         view.AddOutput($"Server settings:"+fsm.channel.GetRemoteEndPoint());
         view.SetReadyToggle(autoQueueForGame);
@@ -75,9 +76,18 @@ public class LobbyState : ApplicationStateWithView<LobbyView>
     
     protected override void handleNetworkMessage(ASerializable pMessage)
     {
-        if (pMessage is ChatMessage) handleChatMessage(pMessage as ChatMessage);
-        else if (pMessage is RoomJoinedEvent) handleRoomJoinedEvent(pMessage as RoomJoinedEvent);
-        else if (pMessage is LobbyInfoUpdate) handleLobbyInfoUpdate(pMessage as LobbyInfoUpdate);
+        switch (pMessage)
+        {
+            case ChatMessage:
+                handleChatMessage(pMessage as ChatMessage);
+                break;
+            case RoomJoinedEvent:
+                handleRoomJoinedEvent(pMessage as RoomJoinedEvent);
+                break;
+            case LobbyInfoUpdate:
+                handleLobbyInfoUpdate(pMessage as LobbyInfoUpdate);
+                break;
+        }
     }
 
     private void handleChatMessage(ChatMessage pMessage)
@@ -100,5 +110,4 @@ public class LobbyState : ApplicationStateWithView<LobbyView>
         //update the lobby heading
         view.SetLobbyHeading($"Welcome to the Lobby ({pMessage.memberCount} people, {pMessage.readyCount} ready)");
     }
-
 }

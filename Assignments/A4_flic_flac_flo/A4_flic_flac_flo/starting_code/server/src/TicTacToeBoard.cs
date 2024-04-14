@@ -41,5 +41,7 @@ namespace server
             //it would be more academically correct if we would clone this object before returning it, but anyway.
             return _board;
         }
+
+        public int HasPlayerWon() => _board.WhoHasWon();
     }
 }

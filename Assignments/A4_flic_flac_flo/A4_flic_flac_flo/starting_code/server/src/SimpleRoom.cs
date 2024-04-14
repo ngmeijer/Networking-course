@@ -13,10 +13,5 @@ namespace server
         {
             addMember(pChannel);
         }
-
-        public void AddMember(TcpMessageChannel pChannel, string pNewMemberName)
-        {
-            addMember(pChannel, pNewMemberName);
-        }
     }
 }

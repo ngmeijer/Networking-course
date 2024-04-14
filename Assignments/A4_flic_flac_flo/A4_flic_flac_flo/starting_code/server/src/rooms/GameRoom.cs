@@ -1,4 +1,5 @@
 ﻿using shared;
+using shared.src.protocol.Lobby;
 using System;
 
 namespace server
@@ -19,6 +20,9 @@ namespace server
 		//wraps the board to play on...
 		private TicTacToeBoard _board = new TicTacToeBoard();
 
+		private PlayerInfo _player1 = new PlayerInfo();
+		private PlayerInfo _player2 = new PlayerInfo();
+
 		public GameRoom(TCPGameServer pOwner) : base(pOwner)
 		{
 		}
@@ -28,9 +32,20 @@ namespace server
 			if (IsGameInPlay) throw new Exception("Programmer error duuuude.");
 
 			IsGameInPlay = true;
-			addMember(pPlayer1);
-			addMember(pPlayer2);
-		}
+
+			_player1.PlayerName = pPlayer1.Name;
+			_player2.PlayerName = pPlayer2.Name;
+            addMember(pPlayer1);
+            addMember(pPlayer2);
+
+			PlayerNameUpdate nameUpdate = new PlayerNameUpdate()
+			{
+				Player1Name = pPlayer1.Name,
+				Player2Name = pPlayer2.Name
+			};
+            pPlayer1.SendMessage(nameUpdate);
+            pPlayer2.SendMessage(nameUpdate);
+        }
 
 		protected override void addMember(TcpMessageChannel pMember)
 		{
@@ -75,7 +90,37 @@ namespace server
 			makeMoveResult.whoMadeTheMove = playerID;
 			makeMoveResult.boardData = _board.GetBoardData();
 			sendToAll(makeMoveResult);
+
+		    checkGameEnd();
 		}
 
-	}
+		private void checkGameEnd()
+		{
+			TicTacToeBoardData data = _board.GetBoardData();
+			int whoWon = data.WhoHasWon();
+			if (whoWon == 0)
+				return;
+
+			//Remove members from game room
+			TcpMessageChannel player1 = GetMember(0);
+			TcpMessageChannel player2 = GetMember(1);
+
+			removeMember(player1);
+			removeMember(player2);
+
+			//Add members to lobby room
+			LobbyRoom lobbyRoom = _server.GetLobbyRoom();
+            lobbyRoom.AddMember(player1);
+            lobbyRoom.AddMember(player2);
+
+			data.Player1 = _player1;
+			data.Player2 = _player2;
+			lobbyRoom.HandleFinishedGame(data);
+
+            RoomJoinedEvent roomJoinedEvent = new RoomJoinedEvent();
+            roomJoinedEvent.room = RoomJoinedEvent.Room.LOBBY_ROOM;
+            player1.SendMessage(roomJoinedEvent);
+			player2.SendMessage(roomJoinedEvent);
+		}
+    }
 }

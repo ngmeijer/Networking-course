@@ -40,7 +40,6 @@ namespace server {
 
 		private TCPGameServer()
 		{
-			//we have only one instance of each room, this is especially limiting for the game room (since this means you can only have one game at a time).
 			_loginRoom = new LoginRoom(this);
 			_lobbyRoom = new LobbyRoom(this);
 		}

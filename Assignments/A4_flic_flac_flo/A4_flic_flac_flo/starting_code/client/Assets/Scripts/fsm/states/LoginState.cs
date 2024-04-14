@@ -87,11 +87,10 @@ public class LoginState : ApplicationStateWithView<LoginView>
     {
         //Dont do anything with this info at the moment, just leave it to the RoomJoinedEvent
         //We could handle duplicate name messages, get player info etc here
-        /*
-        if (pMessage.result == PlayerJoinResponse.State.ACCEPTED)
+        if (pMessage.result == PlayerJoinResponse.RequestResult.ACCEPTED)
         {
+            fsm.channel.Name = view.userName;
         }
-        */
     }
 
     private void handleRoomJoinedEvent (RoomJoinedEvent pMessage)
@@ -101,6 +100,5 @@ public class LoginState : ApplicationStateWithView<LoginView>
             fsm.ChangeState<LobbyState>();
         } 
     }
-
 }
 

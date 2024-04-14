@@ -14,6 +14,9 @@ namespace shared
 		//might be that for your game, a 2d array is actually better
 		public int[] board = new int[9] {0,0,0,0,0,0,0,0,0};
 
+		public PlayerInfo Player1;
+		public PlayerInfo Player2;
+
 		/**
 		 * Returns who has won.
 		 * 

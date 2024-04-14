@@ -10,6 +10,7 @@ public class LobbyView : View
 {
     //all components that need to be hooked up
     [SerializeField] private TMP_Text _textHeading = null;
+    [SerializeField] private TMP_Text _nameField = null;
     [SerializeField] private InputField _inputFieldChat = null;
     [SerializeField] private Text _textOutput = null;
     [SerializeField] private ScrollRect _scrollRect = null;
@@ -62,6 +63,11 @@ public class LobbyView : View
     public void SetLobbyHeading (string pHeading)
     {
         _textHeading.text = pHeading;
+    }
+
+    public void SetPlayerNameText(string pName)
+    {
+        _nameField.text = pName;
     }
 
     public void AddOutput(string pOutput)

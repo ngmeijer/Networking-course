@@ -69,9 +69,9 @@ namespace server
             if (playerJoinResponse.result == PlayerJoinResponse.RequestResult.ACCEPTED)
             {
                 removeMember(pSender);
-                _server.GetLobbyRoom().AddMember(pSender, pMessage.name);
+                pSender.Name = pMessage.name;
+                _server.GetLobbyRoom().AddMember(pSender);
             }
         }
-
     }
 }
