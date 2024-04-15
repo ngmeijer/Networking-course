@@ -101,14 +101,21 @@ namespace server
         public void HandleFinishedGame(TicTacToeBoardData data)
         {
             ChatMessage gameSummary = new ChatMessage();
+            int hasSurrendered = data.WhoHasSurrendered();
+            if (hasSurrendered != 0)
+            {
+                if (hasSurrendered == 1)
+                    gameSummary.message = $"Player 1 '{data.Player1.PlayerName}' has surrendered and lost a game to Player 2 '{data.Player2.PlayerName}'!'";
+                else if(hasSurrendered == 2)
+                    gameSummary.message = $"Player 2 '{data.Player2.PlayerName}' has surrendered and lost a game to Player 1 '{data.Player1.PlayerName}'!'";
+                sendToAll(gameSummary);
+                return;
+            }
+
             if (data.WhoHasWon() == 1)
-            {
-                gameSummary.message = $"Player 1 {data.Player1.PlayerName} has won a game from Player 2 {data.Player2.PlayerName}!";
-            }
+                gameSummary.message = $"Player 1 '{data.Player1.PlayerName}' has won a game from Player 2 {data.Player2.PlayerName}!";
             else if (data.WhoHasWon() == 2)
-            {
-                gameSummary.message = $"Player 2 {data.Player2.PlayerName} has won a game from Player 1 {data.Player1.PlayerName}!";
-            }
+                gameSummary.message = $"Player 2 '{data.Player2.PlayerName}' has won a game from Player 1 '{data.Player1.PlayerName}'!";
 
             sendToAll(gameSummary);
         }

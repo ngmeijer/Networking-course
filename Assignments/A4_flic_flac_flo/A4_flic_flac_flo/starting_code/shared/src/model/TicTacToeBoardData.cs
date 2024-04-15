@@ -17,6 +17,9 @@ namespace shared
 		public PlayerInfo Player1;
 		public PlayerInfo Player2;
 
+		public int SurrenderedIndex;
+
+
 		/**
 		 * Returns who has won.
 		 * 
@@ -35,6 +38,12 @@ namespace shared
 			if (total == 512)	return 2;		//2*2*2*2*2*2*2*2*2
 			return 0;							//noone has one yet
 		}
+
+		public int WhoHasSurrendered()
+		{
+			return SurrenderedIndex;
+		}
+
 		
 		public override void Serialize(Packet pPacket)
 		{

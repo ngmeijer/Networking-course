@@ -1,6 +1,7 @@
 ﻿using shared;
 using shared.src.protocol.Lobby;
 using System;
+using System.Collections.Generic;
 
 namespace server
 {
@@ -20,8 +21,11 @@ namespace server
 		//wraps the board to play on...
 		private TicTacToeBoard _board = new TicTacToeBoard();
 
-		private PlayerInfo _player1 = new PlayerInfo();
-		private PlayerInfo _player2 = new PlayerInfo();
+		private PlayerInfo _player1Info = new PlayerInfo();
+		private PlayerInfo _player2Info = new PlayerInfo();
+
+		private TcpMessageChannel _player1Channel;
+		private TcpMessageChannel _player2Channel;
 
 		public GameRoom(TCPGameServer pOwner) : base(pOwner)
 		{
@@ -33,8 +37,11 @@ namespace server
 
 			IsGameInPlay = true;
 
-			_player1.PlayerName = pPlayer1.Name;
-			_player2.PlayerName = pPlayer2.Name;
+			_player1Channel = pPlayer1;
+			_player2Channel = pPlayer2;
+
+			_player1Info.PlayerName = pPlayer1.Name;
+			_player2Info.PlayerName = pPlayer2.Name;
             addMember(pPlayer1);
             addMember(pPlayer2);
 
@@ -51,8 +58,8 @@ namespace server
 		{
 			string[] names =
 			{
-				_player1.PlayerName,
-				_player2.PlayerName
+				_player1Info.PlayerName,
+				_player2Info.PlayerName
 			};
 
 			return names;
@@ -87,9 +94,34 @@ namespace server
 			{
 				handleMakeMoveRequest(pMessage as MakeMoveRequest, pSender);
 			}
+
+			if(pMessage is SurrenderRequest)
+			{
+				handleSurrenderRequest(pSender);
+			}
+
+			if (pMessage is LeaveGameRoomRequest)
+			{
+				handleLeaveGameRoomRequest();
+			}
 		}
 
-		private void handleMakeMoveRequest(MakeMoveRequest pMessage, TcpMessageChannel pSender)
+        private void handleLeaveGameRoomRequest()
+        {
+            TicTacToeBoardData data = _board.GetBoardData();
+            handleGameEnd(data);
+        }
+
+        private void handleSurrenderRequest(TcpMessageChannel pSender)
+        {
+            TicTacToeBoardData data = _board.GetBoardData();
+            data.SurrenderedIndex = indexOfMember(pSender) + 1;
+
+			_player1Channel.SendMessage(data);
+			_player2Channel.SendMessage(data);
+        }
+
+        private void handleMakeMoveRequest(MakeMoveRequest pMessage, TcpMessageChannel pSender)
 		{
 			//we have two players, so index of sender is 0 or 1, which means playerID becomes 1 or 2
 			int playerID = indexOfMember(pSender) + 1;
@@ -102,37 +134,48 @@ namespace server
 			makeMoveResult.boardData = _board.GetBoardData();
 			sendToAll(makeMoveResult);
 
-		    checkGameEnd();
+		    checkGameEndConditions();
 		}
 
-		private void checkGameEnd()
+		private void checkGameEndConditions()
 		{
 			TicTacToeBoardData data = _board.GetBoardData();
-			int whoWon = data.WhoHasWon();
+
+            int whoWon = data.WhoHasWon();
+
 			if (whoWon == 0)
 				return;
 
-			//Remove members from game room
-			TcpMessageChannel player1 = GetMember(0);
-			TcpMessageChannel player2 = GetMember(1);
+            _player1Channel.SendMessage(data);
+            _player2Channel.SendMessage(data);
+        }
 
-			removeMember(player1);
-			removeMember(player2);
+		private void handleGameEnd(TicTacToeBoardData pData)
+		{
+            removeMember(_player1Channel);
+            removeMember(_player2Channel);
 
-			_server.GetLobbyRoom().DeleteGameRoom(this);
-			//Add members to lobby room
-			LobbyRoom lobbyRoom = _server.GetLobbyRoom();
-            lobbyRoom.AddMember(player1);
-            lobbyRoom.AddMember(player2);
+            _server.GetLobbyRoom().DeleteGameRoom(this);
+            returnPlayersToLobby(pData);
+        }
 
-			data.Player1 = _player1;
-			data.Player2 = _player2;
-			lobbyRoom.HandleFinishedGame(data);
+		private void returnPlayersToLobby(TicTacToeBoardData pData)
+		{
+            //Add members to lobby room
+            LobbyRoom lobbyRoom = _server.GetLobbyRoom();
+            lobbyRoom.AddMember(_player1Channel);
+            lobbyRoom.AddMember(_player2Channel);
 
+			//To log the global "player won" message in the lobby.
+            pData.Player1 = _player1Info;
+            pData.Player2 = _player2Info;
+            lobbyRoom.HandleFinishedGame(pData);
+
+			//Notify clients they have to go back to the lobby.
             RoomJoinedEvent roomJoinedEvent = new RoomJoinedEvent();
             roomJoinedEvent.room = RoomJoinedEvent.Room.LOBBY_ROOM;
-            player1.SendMessage(roomJoinedEvent);
-			player2.SendMessage(roomJoinedEvent);
-		}
+            _player1Channel.SendMessage(roomJoinedEvent);
+            _player2Channel.SendMessage(roomJoinedEvent);
+        }
     }
 }

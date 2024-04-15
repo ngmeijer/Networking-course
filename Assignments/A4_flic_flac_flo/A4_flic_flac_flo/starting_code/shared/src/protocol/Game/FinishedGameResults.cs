@@ -11,16 +11,20 @@ namespace shared
         public string PlayerLostName;
         public string PlayerWonName;
 
+        public bool HasSurrendered;
+
         public override void Deserialize(Packet pPacket)
         {
             PlayerLostName = pPacket.ReadString();
             PlayerWonName = pPacket.ReadString();
+            HasSurrendered = pPacket.ReadBool();
         }
 
         public override void Serialize(Packet pPacket)
         {
             pPacket.Write(PlayerLostName);
             pPacket.Write(PlayerWonName);
+            pPacket.Write(HasSurrendered);
         }
     }
 }

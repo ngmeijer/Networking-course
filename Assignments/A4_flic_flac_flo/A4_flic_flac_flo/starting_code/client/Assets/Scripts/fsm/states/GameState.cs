@@ -23,6 +23,10 @@ public class GameState : ApplicationStateWithView<GameView>
         base.EnterState();
         
         view.gameBoard.OnCellClicked += _onCellClicked;
+
+        //Notify the GameRoom a player has surrendered.
+        view.OnSurrenderedClicked += _onSurrenderClicked;
+        view.OnClickedReturnToLobby += _onReturnToLobbyClicked;
     }
 
     private void _onCellClicked(int pCellIndex)
@@ -31,6 +35,18 @@ public class GameState : ApplicationStateWithView<GameView>
         makeMoveRequest.move = pCellIndex;
 
         fsm.channel.SendMessage(makeMoveRequest);
+    }
+
+    private void _onSurrenderClicked()
+    {
+        SurrenderRequest surrenderRequest = new SurrenderRequest();
+        fsm.channel.SendMessage(surrenderRequest);
+    }
+
+    private void _onReturnToLobbyClicked()
+    {
+        LeaveGameRoomRequest leaveGameRoomRequest = new LeaveGameRoomRequest();
+        fsm.channel.SendMessage(leaveGameRoomRequest);
     }
 
     public override void ExitState()
@@ -57,7 +73,21 @@ public class GameState : ApplicationStateWithView<GameView>
             case RoomJoinedEvent:
                 handleRoomJoinedEvent(pMessage as RoomJoinedEvent);
                 break;
+            case TicTacToeBoardData:
+                handleGameEnd();
+                handleDataUpdate(pMessage as TicTacToeBoardData);
+                break;
         }
+    }
+
+    private void handleGameEnd()
+    {
+        view.EnableEndScreen();
+    }
+
+    private void handleDataUpdate(TicTacToeBoardData pData)
+    {
+        
     }
 
     private void handleNameUpdate(PlayerNameUpdate pPlayerNameUpdate)
