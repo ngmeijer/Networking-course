@@ -112,5 +112,10 @@ namespace server
 
             sendToAll(gameSummary);
         }
+
+        public void DeleteGameRoom(GameRoom gameRoom)
+        {
+            _server.AddGameRoomToDeleteList(gameRoom);
+        }
     }
 }

@@ -47,6 +47,17 @@ namespace server
             pPlayer2.SendMessage(nameUpdate);
         }
 
+		public string[] GetPlayerNames()
+		{
+			string[] names =
+			{
+				_player1.PlayerName,
+				_player2.PlayerName
+			};
+
+			return names;
+		}
+
 		protected override void addMember(TcpMessageChannel pMember)
 		{
 			base.addMember(pMember);
@@ -108,6 +119,7 @@ namespace server
 			removeMember(player1);
 			removeMember(player2);
 
+			_server.GetLobbyRoom().DeleteGameRoom(this);
 			//Add members to lobby room
 			LobbyRoom lobbyRoom = _server.GetLobbyRoom();
             lobbyRoom.AddMember(player1);

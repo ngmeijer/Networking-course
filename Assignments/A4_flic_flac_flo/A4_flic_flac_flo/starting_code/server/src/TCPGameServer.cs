@@ -34,6 +34,7 @@ namespace server {
 		private LoginRoom _loginRoom;	//this is the room every new user joins
 		private LobbyRoom _lobbyRoom;	//this is the room a user moves to after a successful 'login'
 		private List<GameRoom> _currentGameRooms = new List<GameRoom>();
+		private List<GameRoom> _finishedGameRooms = new List<GameRoom> ();
 
 		//stores additional info for a player
 		private Dictionary<TcpMessageChannel, PlayerInfo> _playerInfo = new Dictionary<TcpMessageChannel, PlayerInfo>();
@@ -76,13 +77,27 @@ namespace server {
 					gameRoom.Update();
 				}
 
+                DeleteFinishedGameRooms();
+
 				Thread.Sleep(100);
 			}
 
 		}
-		
-		//provide access to the different rooms on the server 
-		public LoginRoom GetLoginRoom() { return _loginRoom; }
+
+        private void DeleteFinishedGameRooms()
+        {
+            foreach(GameRoom room in _finishedGameRooms) 
+			{
+                string[] playerNames = room.GetPlayerNames();
+                _currentGameRooms.Remove(room);
+				Log.LogInfo($"Deleted GameRoom after game with members {playerNames[0]} and {playerNames[1]} ", this, ConsoleColor.Magenta);
+            }
+
+			_finishedGameRooms.Clear();
+        }
+
+        //provide access to the different rooms on the server 
+        public LoginRoom GetLoginRoom() { return _loginRoom; }
 		public LobbyRoom GetLobbyRoom() { return _lobbyRoom; }
 
 		public GameRoom InitializeGameRoom()
@@ -125,7 +140,14 @@ namespace server {
 			_playerInfo.Remove(pClient);
 		}
 
-	}
+        public void AddGameRoomToDeleteList(GameRoom gameRoom)
+        {
+			if (_currentGameRooms.Contains(gameRoom))
+			{
+				_finishedGameRooms.Add(gameRoom);
+            }
+        }
+    }
 
 }
 
