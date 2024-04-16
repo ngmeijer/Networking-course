@@ -1,4 +1,5 @@
 ﻿using shared;
+using System;
 using UnityEngine;
 
 /**
@@ -69,7 +70,7 @@ public class LobbyState : ApplicationStateWithView<LobbyView>
     ///                     NETWORK MESSAGE PROCESSING
     /// //////////////////////////////////////////////////////////////////
 
-    private void Update()
+    protected void Update()
     {
         receiveAndProcessNetworkMessages();
     }
@@ -87,7 +88,15 @@ public class LobbyState : ApplicationStateWithView<LobbyView>
             case LobbyInfoUpdate:
                 handleLobbyInfoUpdate(pMessage as LobbyInfoUpdate);
                 break;
+            case Heartbeat:
+                handleHeartbeat();
+                break;
         }
+    }
+
+    private void handleHeartbeat()
+    {
+        fsm.channel.SendMessage(new Heartbeat() { Status = "Yeah still here" });
     }
 
     private void handleChatMessage(ChatMessage pMessage)

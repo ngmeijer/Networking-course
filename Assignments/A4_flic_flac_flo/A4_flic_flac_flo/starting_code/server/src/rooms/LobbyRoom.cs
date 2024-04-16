@@ -36,6 +36,8 @@ namespace server
             {
                 member.SendMessage(simpleMessage);
             }
+            pMember.SendMessage(new Heartbeat() { Status = "Hey you alive?" });
+            _connectedMembers.Add(pMember);
 
             //send information to all clients that the lobby count has changed
             sendLobbyUpdateCount();
@@ -55,10 +57,24 @@ namespace server
 
         protected override void handleNetworkMessage(ASerializable pMessage, TcpMessageChannel pSender)
         {
+            _connectedMembers.Clear();
+
             if (pMessage is ChangeReadyStatusRequest)
                 handleReadyNotification(pMessage as ChangeReadyStatusRequest, pSender);
             if (pMessage is ChatMessage)
                 handleChatMessage(pMessage as ChatMessage, pSender);
+            if (pMessage is Heartbeat)
+            {
+                Log.LogInfo($"Received heartbeat from {pSender.Name}", this);
+                handleHeartbeat(pSender);
+            }
+        }
+
+        private void handleHeartbeat(TcpMessageChannel pSender)
+        {
+            if (!_connectedMembers.Contains(pSender))
+                _connectedMembers.Add(pSender);
+            Log.LogInfo($"Set IsConnected of {pSender.Name} to true.", this);
         }
 
         private void handleReadyNotification(ChangeReadyStatusRequest pReadyNotification, TcpMessageChannel pSender)

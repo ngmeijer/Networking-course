@@ -20,6 +20,12 @@ namespace server
         protected TCPGameServer _server { private set; get; }
         //all members of this room (we identify them by their message channel)
         protected List<TcpMessageChannel> _members;
+        protected List<TcpMessageChannel> _connectedMembers = new List<TcpMessageChannel>();
+        protected bool _initiatedHeartbeat;
+
+        protected const int HEARTBEAT_INTERVAL = 10;
+        protected int _currentHeartbeat;
+        protected int _totalHeartbeats;
 
         /**
 		 * Create a room with an empty member list and reference to the server instance they are a part of.
@@ -34,6 +40,7 @@ namespace server
         {
             Log.LogInfo("Client joined.", this);
             _members.Add(pMember);
+            _connectedMembers.Add(pMember); 
         }
 
         public bool HasMember(string pNewMemberName)
@@ -74,8 +81,57 @@ namespace server
 		 */
         public virtual void Update()
         {
-            removeFaultyMembers();
+            //checkFaultyClients();
+            //sendOutHeartbeats();
             receiveAndProcessNetworkMessages();
+        }
+
+        private void checkFaultyClients()
+        {
+            if (_currentHeartbeat >= HEARTBEAT_INTERVAL)
+            {
+                List<TcpMessageChannel> disconnectedClients = new List<TcpMessageChannel>();
+                foreach (TcpMessageChannel pMember in _members)
+                {
+                    if (_connectedMembers.Contains(pMember))
+                        continue;
+
+                    disconnectedClients.Add(pMember);
+                }
+
+                foreach (TcpMessageChannel pMember in disconnectedClients)
+                {
+                    removeAndCloseMember(pMember);
+                }
+            }
+        }
+
+        private void sendOutHeartbeats()
+        {
+            if (_currentHeartbeat >= HEARTBEAT_INTERVAL)
+            {
+                foreach(TcpMessageChannel member in _members)
+                {
+                    try
+                    {
+                        member.SendMessage(new Heartbeat() { Status = $"Sent out heartbeat at tick {_totalHeartbeats}" });
+                    }
+                    catch (Exception e)
+                    {
+                        Log.LogInfo(e, this);
+                    }
+                }
+
+                _currentHeartbeat = 0;
+            }
+
+            _currentHeartbeat += 1;
+            _totalHeartbeats += 1;
+        }
+
+        private void removeFaultyMember(TcpMessageChannel pMember)
+        {
+            removeAndCloseMember(pMember);
         }
 
         /**
