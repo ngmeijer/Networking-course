@@ -62,6 +62,7 @@ public class GameView : View
         int hasSurrendered = pData.WhoHasSurrendered();
         int whoWon = pData.WhoHasWon();
 
+        Debug.Log($"Player 1 move count: {pData.Player1.MoveCount}");
         _player1MoveCountText.SetText($"Player 1 move count: {pData.Player1.MoveCount}");
         _player2MoveCountText.SetText($"Player 2 move count: {pData.Player2.MoveCount}");
 
