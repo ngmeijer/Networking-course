@@ -21,7 +21,8 @@ public class GameState : ApplicationStateWithView<GameView>
     public override void EnterState()
     {
         base.EnterState();
-        
+
+        view.ResetUI();
         view.gameBoard.OnCellClicked += _onCellClicked;
 
         //Notify the GameRoom a player has surrendered.
@@ -87,7 +88,7 @@ public class GameState : ApplicationStateWithView<GameView>
 
     private void handleDataUpdate(TicTacToeBoardData pData)
     {
-        
+        view.UpdateEndScreenData(pData);
     }
 
     private void handleNameUpdate(PlayerNameUpdate pPlayerNameUpdate)
@@ -96,13 +97,8 @@ public class GameState : ApplicationStateWithView<GameView>
         _player1Name = pPlayerNameUpdate.Player1Name;
         _player2Name = pPlayerNameUpdate.Player2Name;
 
-        updateLabelText(view.playerLabel1, $"P1 {_player1Name} (Movecount: {_player1MoveCount})");
-        updateLabelText(view.playerLabel2, $"P2 {_player2Name} (Movecount: {_player2MoveCount})");
-    }
-
-    private void updateLabelText(TMP_Text pTextObject, string pContent)
-    {
-        pTextObject.text = pContent;
+        view.UpdateLabelText(view.playerLabel1, $"P1 '{_player1Name}'", _player1MoveCount);
+        view.UpdateLabelText(view.playerLabel2, $"P2 '{_player2Name}'", _player2MoveCount);
     }
 
     private void handleMakeMoveResult(MakeMoveResult pMakeMoveResult)
@@ -113,20 +109,20 @@ public class GameState : ApplicationStateWithView<GameView>
         if (pMakeMoveResult.whoMadeTheMove == 1)
         {
             _player1MoveCount++;
-            updateLabelText(view.playerLabel1, $"P1 {_player1Name} (Movecount: {_player1MoveCount})");
+            view.UpdateLabelText(view.playerLabel1, $"P1 {_player1Name}", _player1MoveCount);
         }
         if (pMakeMoveResult.whoMadeTheMove == 2)
         {
             _player2MoveCount++;
-            updateLabelText(view.playerLabel2, $"P2 {_player2Name} (Movecount: {_player2MoveCount})");
+            view.UpdateLabelText(view.playerLabel2, $"P2 {_player2Name}", _player2MoveCount);
         }
     }
 
-        private void handleRoomJoinedEvent (RoomJoinedEvent pMessage)
+    private void handleRoomJoinedEvent(RoomJoinedEvent pMessage)
     {
         if (pMessage.room == RoomJoinedEvent.Room.LOBBY_ROOM)
         {
             fsm.ChangeState<LobbyState>();
-        } 
+        }
     }
 }

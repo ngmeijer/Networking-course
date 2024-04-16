@@ -102,20 +102,24 @@ namespace server
 
 			if (pMessage is LeaveGameRoomRequest)
 			{
-				handleLeaveGameRoomRequest();
+				handleLeaveGameRoomRequest(pSender);
 			}
 		}
 
-        private void handleLeaveGameRoomRequest()
+        private void handleLeaveGameRoomRequest(TcpMessageChannel pSender)
         {
             TicTacToeBoardData data = _board.GetBoardData();
-            handleGameEnd(data);
+			data.Player1 = _player1Info;
+			data.Player2 = _player2Info;
+            handlePlayerLeaving(pSender, data);
         }
 
         private void handleSurrenderRequest(TcpMessageChannel pSender)
         {
             TicTacToeBoardData data = _board.GetBoardData();
             data.SurrenderedIndex = indexOfMember(pSender) + 1;
+			data.Player1 = _player1Info;
+			data.Player2 = _player2Info;
 
 			_player1Channel.SendMessage(data);
 			_player2Channel.SendMessage(data);
@@ -125,6 +129,10 @@ namespace server
 		{
 			//we have two players, so index of sender is 0 or 1, which means playerID becomes 1 or 2
 			int playerID = indexOfMember(pSender) + 1;
+			if (playerID == 1)
+				_player1Info.MoveCount++;
+			else if(playerID == 2)
+				_player2Info.MoveCount++;
 			//make the requested move (0-8) on the board for the player
 			_board.MakeMove(pMessage.move, playerID);
 
@@ -132,7 +140,9 @@ namespace server
 			MakeMoveResult makeMoveResult = new MakeMoveResult();
 			makeMoveResult.whoMadeTheMove = playerID;
 			makeMoveResult.boardData = _board.GetBoardData();
-			sendToAll(makeMoveResult);
+            makeMoveResult.boardData.Player1 = _player1Info;
+            makeMoveResult.boardData.Player2 = _player2Info;
+            sendToAll(makeMoveResult);
 
 		    checkGameEndConditions();
 		}
@@ -146,25 +156,28 @@ namespace server
 			if (whoWon == 0)
 				return;
 
+			data.Player1 = _player1Info;
+			data.Player2 = _player2Info;
             _player1Channel.SendMessage(data);
             _player2Channel.SendMessage(data);
         }
 
-		private void handleGameEnd(TicTacToeBoardData pData)
+		private void handlePlayerLeaving(TcpMessageChannel pSender, TicTacToeBoardData pData)
 		{
-            removeMember(_player1Channel);
-            removeMember(_player2Channel);
-
-            _server.GetLobbyRoom().DeleteGameRoom(this);
-            returnPlayersToLobby(pData);
+			//Only delete room if the last/2nd player has left.
+			if (this.memberCount == 1)
+			{
+                removeMember(pSender);
+				_server.GetLobbyRoom().DeleteGameRoom(this);
+			}
+            returnPlayerToLobby(pSender, pData);
         }
 
-		private void returnPlayersToLobby(TicTacToeBoardData pData)
+		private void returnPlayerToLobby(TcpMessageChannel pSender, TicTacToeBoardData pData)
 		{
             //Add members to lobby room
             LobbyRoom lobbyRoom = _server.GetLobbyRoom();
-            lobbyRoom.AddMember(_player1Channel);
-            lobbyRoom.AddMember(_player2Channel);
+            lobbyRoom.AddMember(pSender);
 
 			//To log the global "player won" message in the lobby.
             pData.Player1 = _player1Info;
@@ -174,8 +187,7 @@ namespace server
 			//Notify clients they have to go back to the lobby.
             RoomJoinedEvent roomJoinedEvent = new RoomJoinedEvent();
             roomJoinedEvent.room = RoomJoinedEvent.Room.LOBBY_ROOM;
-            _player1Channel.SendMessage(roomJoinedEvent);
-            _player2Channel.SendMessage(roomJoinedEvent);
+            pSender.SendMessage(roomJoinedEvent);
         }
     }
 }

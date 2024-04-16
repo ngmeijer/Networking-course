@@ -48,11 +48,17 @@ namespace shared
 		public override void Serialize(Packet pPacket)
 		{
 			for (int i = 0; i < board.Length; i++) pPacket.Write(board[i]);
+
+			pPacket.Write(Player1);
+			pPacket.Write(Player2);
 		}
 
 		public override void Deserialize(Packet pPacket)
 		{
 			for (int i = 0; i < board.Length; i++) board[i] = pPacket.ReadInt();
+
+			Player1 = pPacket.Read<PlayerInfo>();
+			Player2 = pPacket.Read<PlayerInfo>();
 		}
 
 		public override string ToString()

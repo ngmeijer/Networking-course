@@ -1,23 +1,29 @@
-﻿namespace shared
+﻿using System;
+
+namespace shared
 {
     /**
      * Empty placeholder class for the PlayerInfo object which is being tracked for each client by the server.
      * Add any data you want to store for the player here and make it extend ASerializable.
      */
+
     public class PlayerInfo : ASerializable
     {
         public string PlayerName;
+        public int MoveCount;
         public bool HasSurrendered;
 
         public override void Deserialize(Packet pPacket)
         {
             PlayerName = pPacket.ReadString();
+            MoveCount = pPacket.ReadInt();
             HasSurrendered = pPacket.ReadBool();
         }
 
         public override void Serialize(Packet pPacket)
         {
-            pPacket.Write(this.PlayerName);
+            pPacket.Write(PlayerName);
+            pPacket.Write(MoveCount);
             pPacket.Write(HasSurrendered);
         }
     }
