@@ -1,5 +1,4 @@
 ﻿using shared;
-using shared.src.protocol.Lobby;
 using System;
 using System.Collections.Generic;
 
@@ -19,10 +18,10 @@ namespace server
 		public bool IsGameInPlay { get; private set; }
 
 		//wraps the board to play on...
-		private TicTacToeBoard _board = new TicTacToeBoard();
+		private TicTacToeBoard _board;
 
-		private PlayerInfo _player1Info = new PlayerInfo();
-		private PlayerInfo _player2Info = new PlayerInfo();
+		private PlayerInfo _player1Info;
+		private PlayerInfo _player2Info;
 
 		private TcpMessageChannel _player1Channel;
 		private TcpMessageChannel _player2Channel;
@@ -37,21 +36,21 @@ namespace server
 
 			IsGameInPlay = true;
 
+			_board = new TicTacToeBoard();
+
 			_player1Channel = pPlayer1;
 			_player2Channel = pPlayer2;
 
-			_player1Info.PlayerName = pPlayer1.Name;
-			_player2Info.PlayerName = pPlayer2.Name;
+			_player1Info = new PlayerInfo() { PlayerName = pPlayer1.Name, PlayerId = 1 };
+            _player2Info = new PlayerInfo() { PlayerName = pPlayer2.Name, PlayerId = 2 };
             addMember(pPlayer1);
             addMember(pPlayer2);
 
-			PlayerNameUpdate nameUpdate = new PlayerNameUpdate()
-			{
-				Player1Name = pPlayer1.Name,
-				Player2Name = pPlayer2.Name
-			};
-            pPlayer1.SendMessage(nameUpdate);
-            pPlayer2.SendMessage(nameUpdate);
+            pPlayer1.SendMessage(_player1Info);
+            pPlayer1.SendMessage(_player2Info);
+
+            pPlayer2.SendMessage(_player1Info);
+            pPlayer2.SendMessage(_player2Info);
         }
 
 		public string[] GetPlayerNames()
@@ -133,8 +132,8 @@ namespace server
 				_player1Info.MoveCount++;
 			else if(playerID == 2)
 				_player2Info.MoveCount++;
-			//make the requested move (0-8) on the board for the player
-			_board.MakeMove(pMessage.move, playerID);
+            //make the requested move (0-8) on the board for the player
+            _board.MakeMove(pMessage.move, playerID);
 
 			//and send the result of the boardstate back to all clients
 			MakeMoveResult makeMoveResult = new MakeMoveResult();
@@ -167,6 +166,7 @@ namespace server
 			//Only delete room if the last/2nd player has left.
 			if (this.memberCount == 1)
 			{
+				_board = null;
                 removeMember(pSender);
 				_server.GetLobbyRoom().DeleteGameRoom(this);
 			}

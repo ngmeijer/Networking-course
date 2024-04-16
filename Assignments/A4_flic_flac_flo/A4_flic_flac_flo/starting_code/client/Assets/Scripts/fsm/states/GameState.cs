@@ -1,5 +1,4 @@
 ﻿using shared;
-using shared.src.protocol.Lobby;
 using System;
 using TMPro;
 using UnityEngine;
@@ -68,8 +67,8 @@ public class GameState : ApplicationStateWithView<GameView>
             case MakeMoveResult:
                 handleMakeMoveResult(pMessage as MakeMoveResult);
                 break;
-            case PlayerNameUpdate:
-                handleNameUpdate(pMessage as PlayerNameUpdate);
+            case PlayerInfo:
+                handleNameUpdate(pMessage as PlayerInfo);
                 break;
             case RoomJoinedEvent:
                 handleRoomJoinedEvent(pMessage as RoomJoinedEvent);
@@ -91,11 +90,12 @@ public class GameState : ApplicationStateWithView<GameView>
         view.UpdateEndScreenData(pData);
     }
 
-    private void handleNameUpdate(PlayerNameUpdate pPlayerNameUpdate)
+    private void handleNameUpdate(PlayerInfo pPlayerInfo)
     {
-        Debug.Log($"Player1 name: {pPlayerNameUpdate.Player1Name}");
-        _player1Name = pPlayerNameUpdate.Player1Name;
-        _player2Name = pPlayerNameUpdate.Player2Name;
+        if(pPlayerInfo.PlayerId == 1)
+            _player1Name = pPlayerInfo.PlayerName;
+        if(pPlayerInfo.PlayerId == 2)
+            _player2Name = pPlayerInfo.PlayerName;
 
         view.UpdateLabelText(view.playerLabel1, $"P1 '{_player1Name}'", _player1MoveCount);
         view.UpdateLabelText(view.playerLabel2, $"P2 '{_player2Name}'", _player2MoveCount);

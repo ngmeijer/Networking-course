@@ -10,12 +10,14 @@ namespace shared
     public class PlayerInfo : ASerializable
     {
         public string PlayerName;
+        public int PlayerId;
         public int MoveCount;
         public bool HasSurrendered;
 
         public override void Deserialize(Packet pPacket)
         {
             PlayerName = pPacket.ReadString();
+            PlayerId = pPacket.ReadInt();
             MoveCount = pPacket.ReadInt();
             HasSurrendered = pPacket.ReadBool();
         }
@@ -23,6 +25,7 @@ namespace shared
         public override void Serialize(Packet pPacket)
         {
             pPacket.Write(PlayerName);
+            pPacket.Write(PlayerId);
             pPacket.Write(MoveCount);
             pPacket.Write(HasSurrendered);
         }

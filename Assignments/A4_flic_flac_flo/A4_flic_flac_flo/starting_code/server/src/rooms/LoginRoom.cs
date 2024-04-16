@@ -55,7 +55,7 @@ namespace server
             playerJoinResponse.Name = pMessage.name;
             if (_server.GetLobbyRoom().HasMember(pMessage.name))
             {
-                playerJoinResponse.result = PlayerJoinResponse.RequestResult.DECLINED;
+                playerJoinResponse.result = PlayerJoinResponse.RequestResult.NAME_TAKEN;
                 playerJoinResponse.ResultReason = $"Lobby already has a member called '{pMessage.name}. Be original dude'";
             }
             else

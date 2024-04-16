@@ -6,7 +6,7 @@
      */
     public class PlayerJoinResponse : ASerializable
     {
-        public enum RequestResult { ACCEPTED, DECLINED }; //can add different result states if you want
+        public enum RequestResult { ACCEPTED, NAME_TAKEN }; //can add different result states if you want
         public RequestResult result;
         public string Name;
         public string ResultReason;

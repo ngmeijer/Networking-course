@@ -99,6 +99,7 @@ public class GameView : View
 
     public void ResetUI()
     {
+        gameBoard.SetBoardData(new TicTacToeBoardData());
         _gameEndScreen.SetActive(false);
         UpdateLabelText(playerLabel2, $"P1 '{""}'", 0);
         UpdateLabelText(playerLabel2, $"P2 '{""}'", 0);

@@ -91,6 +91,10 @@ public class LoginState : ApplicationStateWithView<LoginView>
         {
             fsm.channel.Name = view.userName;
         }
+        else if (pMessage.result == PlayerJoinResponse.RequestResult.NAME_TAKEN)
+        {
+            view.TextConnectResults = "Name is already taken.";
+        }
     }
 
     private void handleRoomJoinedEvent (RoomJoinedEvent pMessage)
