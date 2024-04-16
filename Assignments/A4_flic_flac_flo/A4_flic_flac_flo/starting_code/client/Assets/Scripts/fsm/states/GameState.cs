@@ -21,6 +21,8 @@ public class GameState : ApplicationStateWithView<GameView>
     {
         base.EnterState();
 
+        _player1MoveCount = 0;
+        _player2MoveCount = 0;
         view.ResetUI();
         view.gameBoard.OnCellClicked += _onCellClicked;
 

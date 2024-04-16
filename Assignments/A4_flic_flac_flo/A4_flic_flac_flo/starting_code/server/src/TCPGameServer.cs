@@ -142,7 +142,7 @@ namespace server {
 
         public void AddGameRoomToDeleteList(GameRoom gameRoom)
         {
-			if (_currentGameRooms.Contains(gameRoom))
+			if (_currentGameRooms.Contains(gameRoom) && !_finishedGameRooms.Contains(gameRoom))
 			{
 				_finishedGameRooms.Add(gameRoom);
             }

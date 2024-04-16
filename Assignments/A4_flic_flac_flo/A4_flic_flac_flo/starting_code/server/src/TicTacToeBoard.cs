@@ -18,6 +18,11 @@ namespace server
     {
         private TicTacToeBoardData _board = new TicTacToeBoardData();
 
+        public TicTacToeBoard()
+        {
+            _board = new TicTacToeBoardData();
+        }
+
         /**
          * @param pMove     a number from 0-8 that indicates the cell we want to change
          * @param pPlayer   1 or 2 to indicate which player made the move
@@ -40,6 +45,11 @@ namespace server
         {
             //it would be more academically correct if we would clone this object before returning it, but anyway.
             return _board;
+        }
+
+        public void ResetBoard()
+        {
+            _board = new TicTacToeBoardData();
         }
     }
 }

@@ -11,7 +11,7 @@ namespace shared
     {
         public string PlayerName;
         public int PlayerId;
-        public int MoveCount;
+        public int MoveCount = 0;
         public bool HasSurrendered;
 
         public override void Deserialize(Packet pPacket)

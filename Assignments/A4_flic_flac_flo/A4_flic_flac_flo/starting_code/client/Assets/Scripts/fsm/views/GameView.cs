@@ -29,8 +29,8 @@ public class GameView : View
     [SerializeField] private TMP_Text _surrenderedText;
     public TMP_Text surrenderedText => _surrenderedText;
 
-    [SerializeField] private TMP_Text _player1MoveCount;
-    [SerializeField] private TMP_Text _player2MoveCount;
+    [SerializeField] private TMP_Text _player1MoveCountText;
+    [SerializeField] private TMP_Text _player2MoveCountText;
 
     [SerializeField] private Button _returnToLobbyButton;
     public Button returnToLobbyButton => _returnToLobbyButton;
@@ -62,8 +62,8 @@ public class GameView : View
         int hasSurrendered = pData.WhoHasSurrendered();
         int whoWon = pData.WhoHasWon();
 
-        _player1MoveCount.SetText($"Player 1 move count: {pData.Player1.MoveCount}");
-        _player2MoveCount.SetText($"Player 2 move count: {pData.Player2.MoveCount}");
+        _player1MoveCountText.SetText($"Player 1 move count: {pData.Player1.MoveCount}");
+        _player2MoveCountText.SetText($"Player 2 move count: {pData.Player2.MoveCount}");
 
         if (hasSurrendered != 0)
         {
