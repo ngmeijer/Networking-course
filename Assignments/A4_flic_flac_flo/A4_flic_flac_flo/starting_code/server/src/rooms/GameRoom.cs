@@ -168,21 +168,18 @@ namespace server
             Log.LogInfo($"PlayerCount before player leaving: {memberCount}", this);
             removeMember(pSender);
 
-            if(memberCount == 0)
-                _server.GetLobbyRoom().DeleteGameRoom(this);
-            returnPlayerToLobby(pSender, pData);
-        }
-
-        private void returnPlayerToLobby(TcpMessageChannel pSender, TicTacToeBoardData pData)
-        {
-            //Add members to lobby room
             LobbyRoom lobbyRoom = _server.GetLobbyRoom();
             lobbyRoom.AddMember(pSender);
 
-            //To log the global "player won" message in the lobby.
-            pData.Player1 = _player1Info;
-            pData.Player2 = _player2Info;
-            lobbyRoom.HandleFinishedGame(pData);
+            if (memberCount == 0)
+            {
+                lobbyRoom.DeleteGameRoom(this);
+                //To log the global "player won" message in the lobby.
+
+                pData.Player1 = _player1Info;
+                pData.Player2 = _player2Info;
+                lobbyRoom.NotifyLobbyAboutGameWin(pData);
+            }
 
             //Notify client they have to go back to the lobby.
             RoomJoinedEvent roomJoinedEvent = new RoomJoinedEvent();

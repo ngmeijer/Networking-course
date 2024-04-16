@@ -97,7 +97,7 @@ namespace server
             sendToAll(lobbyInfoMessage);
         }
 
-        public void HandleFinishedGame(TicTacToeBoardData data)
+        public void NotifyLobbyAboutGameWin(TicTacToeBoardData data)
         {
             ChatMessage gameSummary = new ChatMessage();
             int hasSurrendered = data.WhoHasSurrendered();
@@ -112,7 +112,7 @@ namespace server
             }
 
             if (data.WhoHasWon() == 1)
-                gameSummary.message = $"Player 1 '{data.Player1.PlayerName}' has won a game from Player 2 {data.Player2.PlayerName}!";
+                gameSummary.message = $"Player 1 '{data.Player1.PlayerName}' has won a game from Player 2 '{data.Player2.PlayerName}'!";
             else if (data.WhoHasWon() == 2)
                 gameSummary.message = $"Player 2 '{data.Player2.PlayerName}' has won a game from Player 1 '{data.Player1.PlayerName}'!";
 
