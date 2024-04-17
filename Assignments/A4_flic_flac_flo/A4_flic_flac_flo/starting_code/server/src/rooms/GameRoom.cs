@@ -90,19 +90,18 @@ namespace server
 
         protected override void handleNetworkMessage(ASerializable pMessage, TcpMessageChannel pSender)
         {
-            if (pMessage is MakeMoveRequest)
+            try
             {
-                handleMakeMoveRequest(pMessage as MakeMoveRequest, pSender);
+                if (pMessage is MakeMoveRequest)
+                    handleMakeMoveRequest(pMessage as MakeMoveRequest, pSender);
+                if (pMessage is SurrenderRequest)
+                    handleSurrenderRequest(pSender);
+                if (pMessage is LeaveGameRoomRequest)
+                    handleLeaveGameRoomRequest(pSender);
             }
-
-            if (pMessage is SurrenderRequest)
+            catch (Exception e)
             {
-                handleSurrenderRequest(pSender);
-            }
-
-            if (pMessage is LeaveGameRoomRequest)
-            {
-                handleLeaveGameRoomRequest(pSender);
+                Log.LogInfo(e, this, ConsoleColor.Red);
             }
         }
 
@@ -174,7 +173,6 @@ namespace server
             if (memberCount == 0)
             {
                 lobbyRoom.DeleteGameRoom(this);
-                //To log the global "player won" message in the lobby.
 
                 pData.Player1 = _player1Info;
                 pData.Player2 = _player2Info;

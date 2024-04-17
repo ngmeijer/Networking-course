@@ -57,29 +57,50 @@ namespace server {
 
 			while (true)
 			{
-				//check for new members	
-				if (listener.Pending())
+				try
 				{
-					//get the waiting client
-					Log.LogInfo("Accepting new client...", this, ConsoleColor.White);
-					TcpClient client = listener.AcceptTcpClient();
-					//and wrap the client in an easier to use communication channel
-					TcpMessageChannel channel = new TcpMessageChannel(client);
-					//and add it to the login room for further 'processing'
-					_loginRoom.AddMember(channel);
+					//check for new members	
+					if (listener.Pending())
+					{
+						//get the waiting client
+						Log.LogInfo("Accepting new client...", this, ConsoleColor.White);
+						TcpClient client = listener.AcceptTcpClient();
+						//and wrap the client in an easier to use communication channel
+						TcpMessageChannel channel = new TcpMessageChannel(client);
+						//and add it to the login room for further 'processing'
+						_loginRoom.AddMember(channel);
+					}
+				}
+				catch (Exception e)
+				{
+					Log.LogInfo(e, this, ConsoleColor.Red);
 				}
 
 				//now update every single room
-				_loginRoom.Update();
-				_lobbyRoom.Update();
-				foreach(GameRoom gameRoom in _currentGameRooms)
+				try
 				{
-					gameRoom.Update();
+					_loginRoom.Update();
+					_lobbyRoom.Update();
+					foreach (GameRoom gameRoom in _currentGameRooms)
+					{
+						gameRoom.Update();
+					}
 				}
+				catch (Exception e)
+				{
+                    Log.LogInfo(e, this, ConsoleColor.Red);
+                }
 
-                DeleteFinishedGameRooms();
+				try
+				{
+					DeleteFinishedGameRooms();
+				}
+				catch(Exception e)
+				{
+                    Log.LogInfo(e, this, ConsoleColor.Red);
+                }
 
-				Thread.Sleep(100);
+                Thread.Sleep(100);
 			}
 
 		}

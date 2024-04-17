@@ -1,6 +1,7 @@
 ﻿using shared;
 using System;
 using System.Collections.Generic;
+using System.Net.Sockets;
 
 namespace server
 {
@@ -40,7 +41,7 @@ namespace server
         {
             Log.LogInfo("Client joined.", this);
             _members.Add(pMember);
-            _connectedMembers.Add(pMember); 
+            _connectedMembers.Add(pMember);
         }
 
         public bool HasMember(string pNewMemberName)
@@ -88,45 +89,53 @@ namespace server
 
         private void checkFaultyClients()
         {
-            if (_currentHeartbeat >= HEARTBEAT_INTERVAL)
+            List<TcpMessageChannel> disconnectedMembers = new List<TcpMessageChannel>();
+
+
+            //Step 1. 
+
+            foreach (TcpMessageChannel channel in disconnectedMembers)
             {
-                List<TcpMessageChannel> disconnectedClients = new List<TcpMessageChannel>();
-                foreach (TcpMessageChannel pMember in _members)
-                {
-                    if (_connectedMembers.Contains(pMember))
-                        continue;
-
-                    disconnectedClients.Add(pMember);
-                }
-
-                foreach (TcpMessageChannel pMember in disconnectedClients)
-                {
-                    removeAndCloseMember(pMember);
-                }
+                removeAndCloseMember(channel);
             }
+
+            _connectedMembers.Clear();
         }
 
         private void sendOutHeartbeats()
         {
-            if (_currentHeartbeat >= HEARTBEAT_INTERVAL)
+            try
             {
-                foreach(TcpMessageChannel member in _members)
+                if (_currentHeartbeat >= HEARTBEAT_INTERVAL)
                 {
-                    try
+                    List<TcpMessageChannel> disconnectedMembers = new List<TcpMessageChannel> ();
+                    foreach (TcpMessageChannel member in _members)
                     {
-                        member.SendMessage(new Heartbeat() { Status = $"Sent out heartbeat at tick {_totalHeartbeats}" });
+                        if (_connectedMembers.Contains(member))
+                            continue;
+
+                        disconnectedMembers.Add(member);
                     }
-                    catch (Exception e)
+                    _connectedMembers.Clear();
+
+                    foreach (TcpMessageChannel member in disconnectedMembers)
                     {
-                        Log.LogInfo(e, this);
+                        _members.Remove(member);
                     }
+
+                    foreach (TcpMessageChannel member in _members)
+                    {
+                        member.SendMessage(new Heartbeat() { Status = $"Hey you still there at frame {_totalHeartbeats}?" });
+                    }
+                    _currentHeartbeat = 0;
                 }
-
-                _currentHeartbeat = 0;
+                _currentHeartbeat += 1;
+                _totalHeartbeats += 1;
             }
-
-            _currentHeartbeat += 1;
-            _totalHeartbeats += 1;
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+            }
         }
 
         private void removeFaultyMember(TcpMessageChannel pMember)

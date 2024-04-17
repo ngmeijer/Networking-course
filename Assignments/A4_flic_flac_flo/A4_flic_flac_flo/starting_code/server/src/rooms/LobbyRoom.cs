@@ -59,14 +59,21 @@ namespace server
         {
             _connectedMembers.Clear();
 
-            if (pMessage is ChangeReadyStatusRequest)
-                handleReadyNotification(pMessage as ChangeReadyStatusRequest, pSender);
-            if (pMessage is ChatMessage)
-                handleChatMessage(pMessage as ChatMessage, pSender);
-            if (pMessage is Heartbeat)
+            try
             {
-                Log.LogInfo($"Received heartbeat from {pSender.Name}", this);
-                handleHeartbeat(pSender);
+                if (pMessage is ChangeReadyStatusRequest)
+                    handleReadyNotification(pMessage as ChangeReadyStatusRequest, pSender);
+                if (pMessage is ChatMessage)
+                    handleChatMessage(pMessage as ChatMessage, pSender);
+                if (pMessage is Heartbeat)
+                {
+                    Log.LogInfo($"Received heartbeat from {pSender.Name}", this);
+                    handleHeartbeat(pSender);
+                }
+            }
+            catch (Exception e)
+            {
+                Log.LogInfo(e, this, ConsoleColor.Red);
             }
         }
 
